@@ -56,4 +56,4 @@ RUN apt-get update\
 && R -e "BiocManager::install('ComplexHeatmap')"
 
 
-RUN R -e "devtools::install_github('gabraham/plink2R/plink2R', dependencies=TRUE)"
+#RUN R -e "devtools::install_github('gabraham/plink2R/plink2R', dependencies=TRUE)"

@@ -24,5 +24,6 @@ sudo yum update -y
 sudo amazon-linux-extras install docker
 sudo service docker start
 sudo usermod -aG docker <USER ID>
-sudo docker image build -t ranker ./Docker/
+sudo docker run -v "/home/jgockley/AD_TargetRank:/home/jgockley/AD_TargetRank" -e USER=$(id -u ${USER}) -e PASSWORD=<PASSWORD> -d -p 8787:8787 <DockerImageID>
+
 ```
