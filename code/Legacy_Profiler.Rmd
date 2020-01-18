@@ -1,0 +1,1134 @@
+---
+title: "AD Target Gene Report"
+author: "Jake Gockley"
+date: "11/11/2019"
+header-includes:
+  - \usepackage{multicol}
+  - \newcommand{\btwocol}{\begin{multicols}{2}}
+  - \newcommand{\etwocol}{\end{multicols}}
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = F)
+library(readr)
+library(biomaRt)
+library(knitr)
+library(kableExtra)
+library(tidyverse)
+library(grid)
+library(dplyr)
+library(ggplot2)
+library(ggrepel)
+library(gridExtra)
+#library(kableExtra)
+#library(dbplyr)
+#synapseclient <- reticulate::import("synapseclient")
+#syn_temp <- synapseclient$Synapse()
+#syn_temp$login()
+
+#MEF2C - ENSG00000081189
+#NME8 - ENSG00000086288
+#NDUFAF6 - ENSG00000156170 
+#ECHDC3 - ENSG00000134463
+#ADAMTS20 - ENSG00000173157
+#SPPL2A - ENSG00000138600
+#ADAM10 - ENSG00000137845
+#IQCK - ENSG00000174628
+#MIR142/TSPOAP1-AS1 - ENSG00000265148
+#ACE - ENSG00000159640
+#ADAMTS1 - ENSG00000154734
+#BIN1 - ENSG00000136717
+#TREM2 - ENSG00000095970
+#PTK2B - ENSG00000120899
+#CLU - ENSG00000120885
+#ABCA7 - 
+
+#Test Genes
+Genes <- c('ENSG00000081189','ENSG00000086288', 'ENSG00000137845', 'ENSG00000138600', 'ENSG00000173157', 
+           'ENSG00000134463', 'ENSG00000156170', 'ENSG00000120899', 'ENSG00000147065','ENSG00000130203', 
+           'ENSG00000165025','ENSG00000174628', 'ENSG00000265148', 'ENSG00000159640', 'ENSG00000154734', 
+           'ENSG00000136717', 'ENSG00000095970', 'ENSG00000120885', 'ENSG00000064687')
+
+#Ana's genes
+Genes <- c("ENSG00000048392", "ENSG00000051620", "ENSG00000070495", "ENSG00000074800", "ENSG00000077152", "ENSG00000091140", "ENSG00000096060", "ENSG00000100030", "ENSG00000100418", "ENSG00000100605", "ENSG00000105220", "ENSG00000105398", "ENSG00000108424", "ENSG00000109576", "ENSG00000111640", "ENSG00000113657", "ENSG00000117115", "ENSG00000117228", "ENSG00000119125", "ENSG00000121879", "ENSG00000128683", "ENSG00000130540", "ENSG00000136634", "ENSG00000137992", "ENSG00000139112", "ENSG00000140374", "ENSG00000143546", "ENSG00000146701", "ENSG00000146733", "ENSG00000155368", "ENSG00000156709", "ENSG00000162433", "ENSG00000164111", "ENSG00000165025", "ENSG00000166224", "ENSG00000167325", "ENSG00000167720", "ENSG00000168291", "ENSG00000176490", "ENSG00000177511", "ENSG00000186298", "ENSG00000196154", "ENSG00000197448", "ENSG00000197956", "ENSG00000213719")
+
+#Genes <- c('ENSG00000147065','ENSG00000130203')
+#Genes <- c('ENSG00000130203')
+Tissues <- c('CBE',  'DLPFC' , 'FP', 'IFG', 'PHG', 'STG', 'TCX')
+#DE  = 'syn14237651'
+#eQTL_Cer = 'syn16984411'
+#eQTL_TCX = 'syn16984410'
+#eQTL_DLPFC = 'syn16984409'
+#eQTL_EasyYesNo = 'syn12514912
+#AgoraDrugability = 'syn13363443'
+#Proteomics = 'syn18689335'
+#AD Associated Mets Networks: syn11932957
+#AD Meta Network Modual Associations syn11954640
+```
+
+
+```{r Settings, echo =F, warning=F}
+plotdir='/Users/jgockley/Desktop/Projects/AMP-AD_Targets/Candidate_Target_Profiler/Plots/'
+tabledir='Tables/'
+Tissues <- c('CBE', 'DLPFC', 'IFG', 'PHG', 'TCX', 'STG', 'FP')
+
+```
+
+### IGAP SNPs
+
+```{r Table1, echo =F, warning=F}
+IGAP <- read.table( file = "/Users/jgockley/Desktop/Projects/AMP-AD_Targets/Candidate_Target_Profiler/RefrenceData/IGAP_stage_1_2_combined.txt", sep = "\t", header = T)
+IGAP1 <- read.table( file = "/Users/jgockley/Desktop/Projects/AMP-AD_Targets/Candidate_Target_Profiler/RefrenceData/IGAP_stage_1.txt", sep = "\t", header = T)
+```
+
+```{r Table1v2, echo =F, warning=F}
+GeneData <- function( id ){
+  
+  org = 'hsa'
+  id.type = 'ensembl_gene_id'
+  #host = 'jul2019.archive.ensembl.org'
+  host = 'grch37.ensembl.org'
+  ensembl <- useMart("ENSEMBL_MART_ENSEMBL", host = host)
+  ds <- listDatasets(ensembl)[, "dataset"]
+  ds <- grep(paste0("^", org), ds, value = TRUE)
+  
+  if (length(ds) == 0){
+    stop(paste("Mart not found for:", org))
+  } else if (length(ds) > 1) {
+    message("Found several marts")
+    sapply(ds, function(d) message(paste(which(ds == d), d, sep = ": ")))
+    n <- readline(paste0("Choose mart (1-", length(ds), ") : "))
+    ds <- ds[as.integer(n)]
+  }
+    
+  ensembl <- useDataset(ds, mart = ensembl)
+  
+  Genes <- getBM(filters = id.type, attributes = c(id.type, 'hgnc_symbol', 'chromosome_name', 'start_position', 'end_position'), values = id, mart = ensembl)
+  return(Genes)
+}
+
+Tab <- GeneData( Genes )
+Tab$Coord_hg19 <- paste0("chr", Tab$chromosome_name, ":", Tab$start_position, "-",Tab$end_position)
+Tab$Interval_hg19 <- NA
+for( i in 1:dim(Tab)[1]){
+  if(  Tab$start_position[i] < Tab$ensembl_gene_id[i] ){
+    Tab$Interval_hg19[i] <- paste0("chr", Tab$chromosome_name[i], ":", as.numeric(Tab$start_position[i])-1e6, "-", as.numeric(Tab$end_position[i])+1e6)
+  }else{
+    Tab$Interval_hg19[i] <- paste0("chr", Tab$chromosome_name[i], ":", as.numeric(Tab$start_position[i])+1e6, "-", as.numeric(Tab$end_position[i])-1e6)
+  }
+}
+
+
+Tab$LowestPValCombined <- 1
+Tab$TotalSNPsCombined <- 0
+
+Tab$LowestPValPhase1 <- 1
+Tab$TotalSNPsPhase1 <- 0
+
+#New Dataframe for the IGAP results that you can track the pval distributions
+TotalIGAP <- NULL
+
+#Look at the dataframe 
+MedianScoreIGAP <- NULL
+
+#Look at the dataframe 
+BestScoreIGAP <- NULL
+
+for( i in 1:dim(Tab)[1]){
+  
+  if( isTRUE(as.character(Tab$chromosome_name)[i] %in% as.character(c(1:22))) ){
+    Temp <- IGAP[ (as.numeric(as.character(IGAP$Position)) > (as.numeric(as.character(Tab$start_position))[i]-1e6)) &
+                  (as.numeric(as.character(IGAP$Position)) < (as.numeric(as.character(Tab$start_position))[i]+1e6)) &
+                  as.numeric(as.character(IGAP$Chromosome)) == as.numeric(as.character(Tab$chromosome_name)[i])  , ]
+    if( dim(Temp)[1] == 0){
+      Temp[1,] <- 0
+      Temp$GeneName <- Tab$hgnc_symbol[i]
+    }else{
+      Temp$GeneName <- Tab$hgnc_symbol[i]
+    }
+    TotalIGAP <- as.data.frame(rbind(TotalIGAP,Temp))
+    
+    TempV1 <- IGAP1[ (as.numeric(as.character(IGAP1$Position)) > (as.numeric(as.character(Tab$start_position))[i]-1e6)) &
+                  (as.numeric(as.character(IGAP1$Position)) < (as.numeric(as.character(Tab$start_position))[i]+1e6)) &
+                  as.numeric(as.character(IGAP1$Chromosome)) == as.numeric(as.character(Tab$chromosome_name)[i])  , ] 
+    TempV1$GeneName <- Tab$hgnc_symbol[i]
+    #TotalIGAP <- as.data.frame(rbind(TotalIGAP,TempV1))
+    
+      if( median(c(1:length(TempV1$Pvalue))) == floor(median(c(1:length(TempV1$Pvalue)))) & median(c(1:length(TempV1$Pvalue))) == ceiling(median(c(1:length(TempV1$Pvalue)))) ) {
+        MedianScoreIGAP <- as.data.frame(rbind(MedianScoreIGAP,TempV1[ median(TempV1$Pvalue) == as.numeric(TempV1$Pvalue), ]))
+      }else{
+    
+        val <- sort(TempV1$Pvalue)[ floor(median(c(1:length(TempV1$Pvalue)))) ]
+        MedianScoreIGAP <- as.data.frame(rbind(MedianScoreIGAP,TempV1[ val == as.numeric(TempV1$Pvalue), ]))
+      }
+    
+    #BestScoreIGAP <- as.data.frame(rbind(BestScoreIGAP,Temp[ min(Temp$Pvalue) == as.numeric(Temp$Pvalue), ]))
+
+    if( dim(Temp)[1] == 0 ){
+        
+    }else{
+        Tab$LowestPValCombined[i] <- min( Temp$Pvalue )
+        Tab$TotalSNPsCombined[i] <- paste0("N=", dim(Temp)[1] )
+    }
+    if( dim(TempV1)[1] == 0 ){
+    }else{
+        Tab$LowestPValPhase1[i] <- min( TempV1$Pvalue )
+        Tab$TotalSNPsPhase1[i] <- paste0("N=", dim(TempV1)[1] )
+    }
+  }else{
+    #Temp <- as.data.frame(matrix(0, 1, 9))
+    #colnames(Temp) <- c( 'Chromosome', 'Position', 'MarkerName', 'Effect_allele', 'Non_Effect_allele', 'Beta', 'SE', 'Pvalue', 'GeneName' ) 
+    #Temp$GeneName <- Tab[ i, ]$GeneName
+    #Temp$Pvalue <- 1
+    #BestScoreIGAP <- as.data.frame(rbind(BestScoreIGAP,Temp[ 1, ]))
+
+  }
+  if( dim(Temp)[1] == 0){
+    Temp <- as.data.frame(matrix(0, 1, 10))
+    colnames(Temp) <- c( 'Chromosome', 'Position', 'MarkerName', 'Effect_allele', 'Non_Effect_allele', 'Beta', 'SE', 'Pvalue', 'Rank', 'GeneName' ) 
+    Temp$GeneName <- Tab[ i, ]$hgnc_symbol
+    Temp$Pvalue <- 1
+    BestScoreIGAP <- as.data.frame(rbind(BestScoreIGAP,Temp[ 1, ]))
+  }else{
+    BestScoreIGAP <- as.data.frame(rbind(BestScoreIGAP,Temp[ min(Temp$Pvalue) == as.numeric(Temp$Pvalue), ]))
+  }
+}
+colnames(Tab) <- c("ENSG", "GeneName", "Start", "End", "Chr", "Coordhg19", "Intervalhg19", "LowestPValCombined", "TotalSNPsCombined", "LowestPValPhaseI", "TotalSNPsPhaseI" )
+row.names(Tab) <- Tab$ENSG
+
+TotalIGAP$LogP <- -log(TotalIGAP$Pvalue)
+
+p <- ggplot(TotalIGAP, aes(x=GeneName, y=LogP)) + 
+  geom_violin() + geom_boxplot(width=0.1) +
+  geom_jitter(shape=16, size=.1, position=position_jitter(0.2)) +
+  theme(axis.text.x = element_text(angle = 45) ) + ylab('-Log(P-Value)')  
+#p 
+
+setEPS()
+postscript(file = paste0(plotdir,'/TotalIGAP.eps') )
+  ggplot(TotalIGAP, aes(x=GeneName, y=LogP)) + 
+  geom_violin() + geom_boxplot(width=0.1) +
+  geom_jitter(shape=16, size=.1, position=position_jitter(0.2)) +
+  theme(axis.text.x = element_text(angle = 45) ) + ylab('-Log(P-Value)') 
+dev.off()
+
+IGAP$Rank<-rank(-IGAP$Pvalue)
+FOO<-IGAP
+FOO$Pvalue <- -log(FOO$Pvalue)
+FOO$RankModel <- (FOO$Rank/max(FOO$Rank))
+
+
+Pr <- ggplot( FOO, aes(x=Pvalue, y=RankModel)) +
+  geom_point() + xlab("-log(P-Value") + geom_smooth(method = "glm", method.args = list(family = "binomial"), se = FALSE)
+#Pr
+setEPS()
+postscript(file = paste0(plotdir,'/IGAP_WeightModel.eps') )
+   ggplot( FOO, aes(x=Pvalue, y=RankModel)) +
+  geom_point() + xlab("-log(P-Value") + geom_smooth(method = "glm", method.args = list(family = "binomial"), se = FALSE)
+dev.off()
+
+
+#Fit Logistic Model:
+mylogit <- glm(RankModel ~ Pvalue, data = FOO, family = "binomial")
+
+LogisticScorer <- function( X ){
+  y <- 1/(1+exp( -( -3.305501+0.420491*X) ))
+  return(y)
+}
+
+FOO$Weights <- LogisticScorer(FOO$Pvalue)
+#Pr <- ggplot( FOO, aes(x=Pvalue, y=Weights)) +
+#  geom_point() + xlab("-log(P-Value)") + geom_smooth(method = "glm", method.args = list(family = "binomial"), se = FALSE) 
+
+
+Temp <- FOO[ ,c(1:10)]
+Temp$Type <- "Actual Rank"
+colnames(Temp)[10] <- "y"
+temp <- FOO[ ,c(1:9,11)] 
+temp$Type <- "Predicted Weight"
+colnames(temp)[10] <- "y"
+
+Total <- rbind(Temp,temp)
+Pt <- ggplot( Total, aes(x=Pvalue, y=y, col=Type)) + scale_color_manual(values=c( "#E69F00", "#56B4E9")) +
+  geom_point() + xlab("-log(P-Value)") + geom_smooth(method = "glm", method.args = list(family = "binomial"), colour="black", size=0.5, se = FALSE)  
+#Pt
+
+setEPS()
+postscript(file = paste0(plotdir,'/Fitted_IGAP_WeightModel.eps') )
+  ggplot( Total, aes(x=Pvalue, y=y, col=Type)) + scale_color_manual(values=c( "#E69F00", "#56B4E9")) +
+  geom_point() + xlab("-log(P-Value)") + geom_smooth(method = "glm", method.args = list(family = "binomial"), colour="black", size=0.5, se = FALSE)  
+dev.off()
+
+#Remove the pval ties
+BestScoreIGAP <- BestScoreIGAP[ !duplicated(BestScoreIGAP$GeneName), ]
+BestScoreIGAP$Wts <- LogisticScorer(-log(BestScoreIGAP$Pvalue))
+BestScoreIGAP$LogP <- -log(BestScoreIGAP$Pvalue)
+
+Py <- ggplot( BestScoreIGAP, aes(x=LogP, y=Wts, col=GeneName)) +
+  geom_point() + xlab("-log(P-Value)") + ylab("IGAP Weight") + geom_smooth( data=Total, aes(x=Pvalue, y=y, col=Type), method = "glm", method.args = list(family = "binomial"), colour="black", size=0.5, se = FALSE) + geom_label_repel(aes(label = GeneName),
+                  box.padding   = 0.35, 
+                  point.padding = 0.5,
+                  segment.color = 'grey50') 
+#Py
+setEPS()
+postscript(file = paste0(plotdir,'/Best_IGAP_Weight_Score.eps') )
+  ggplot( BestScoreIGAP, aes(x=LogP, y=Wts, col=GeneName)) +
+  geom_point() + xlab("-log(P-Value)") + ylab("IGAP Weight") + geom_smooth( data=Total, aes(x=Pvalue, y=y, col=Type), method = "glm", method.args = list(family = "binomial"), colour="black", size=0.5, se = FALSE) + geom_label_repel(aes(label = GeneName),
+                  box.padding   = 0.35, 
+                  point.padding = 0.5,
+                  segment.color = 'grey50')  
+dev.off()
+
+
+lay <- rbind(c(1,2),
+             c(3,4))
+
+g1 <- ggplotGrob( p)
+g2 <- ggplotGrob( Pr)
+g3 <- ggplotGrob( Pt)
+g4 <- ggplotGrob( Py )
+
+
+gs = list( g1, g2, g3, g4 )
+
+```
+
+
+```{r Table1v3, echo =F, warning=F, eval= F}
+           
+plot( grid.arrange(grobs = gs, layout_matrix = lay, top = "IGAP Weight Models Applied to Lowest SNP Within 1MB of Combined Phase I + II)") )
+
+```
+
+```{r Table1v4, echo =F, warning=F}
+
+##Plot Data Table
+Tab %>% 
+  mutate(
+    LowestPValCombined = cell_spec(LowestPValCombined, bold = ifelse(LowestPValCombined < 0.05, TRUE, FALSE ), color = ifelse(LowestPValCombined < 0.05, "red", ifelse(LowestPValCombined == 1, "white", "black") )),
+    LowestPValPhaseI = cell_spec(LowestPValPhaseI, bold = ifelse(LowestPValPhaseI < 0.05, TRUE, FALSE ), color = ifelse(LowestPValPhaseI < 0.05, "red", ifelse(LowestPValPhaseI == 1, "white", "black") ))
+  ) %>%
+  select( ENSG, GeneName, Start, End, Chr, Coordhg19, Intervalhg19, LowestPValCombined, TotalSNPsCombined, LowestPValPhaseI, TotalSNPsPhaseI)  %>%
+  kable( escape = F,  format = "html") %>%
+  kable_styling("striped", full_width = F)
+
+
+save_kable(
+  Tab %>% 
+  mutate(
+    LowestPValCombined = cell_spec(LowestPValCombined, bold = ifelse(LowestPValCombined < 0.05, TRUE, FALSE ), color = ifelse(LowestPValCombined < 0.05, "red", ifelse(LowestPValCombined == 1, "white", "black") )),
+    LowestPValPhaseI = cell_spec(LowestPValPhaseI, bold = ifelse(LowestPValPhaseI < 0.05, TRUE, FALSE ), color = ifelse(LowestPValPhaseI < 0.05, "red", ifelse(LowestPValPhaseI == 1, "white", "black") ))
+  ) %>%
+  select( ENSG, GeneName, Start, End, Chr, Coordhg19, Intervalhg19, LowestPValCombined, TotalSNPsCombined, LowestPValPhaseI, TotalSNPsPhaseI)  %>%
+  kable( escape = F,  format = "html") %>%
+  kable_styling("striped", full_width = F),
+  
+  file=paste0(tabledir,'/IGAPStats.pdf')
+)
+
+```
+
+### Differential Expression
+
+```{r  DEProcessing, echo =F, warning=F, include=F}
+DE <- read.table( file = "/Users/jgockley/Desktop/Projects/AMP-AD_Targets/Candidate_Target_Profiler/RefrenceData/differentialExpressionSummary.tsv",
+                  header=T, sep ="\t")
+
+
+ModelConstruct <- function( de, Comp, Mod, Sex ){
+  #C#reates a model and plots the target genes
+  #'@de the differential  expression Construct (DE)
+  #'@Comp The comparison ie NA or "AD-CONTROL" 
+  #'@Mod The model is NA or 'Diagnosis'
+  #'@Sex The Sex Comparison ie NA or 'MALE' or 'FEMALE'
+  
+  #Find the gene expression for the value of the genes where it exists
+  if( isTRUE(is.na(Comp)) ){
+  }else{
+    de <- de[ de$Comparison == Comp ,  ] 
+  }
+  if( isTRUE(is.na(Mod)) ){
+  }else{
+    de <- de[ de$Model == Mod ,   ] 
+  }
+  if( isTRUE(is.na(Sex)) ){
+  }else{
+    de <- de[ de$Sex == Sex ,  ] 
+  }
+  de <- de[ , c('hgnc_symbol', 'ensembl_gene_id','Tissue','logFC','adj.P.Val') ]
+  
+  Models <- list()
+  Plots <- list()
+  
+  #Loop through induvidual tissues
+  for( Tissue in c('CBE', 'DLPFC', 'FP', "IFG", "PHG", "STG", "TCX" )){
+    Work <- de[ de$Tissue == Tissue, ]
+    Work$y <- rank(abs( Work$logFC)) / max(rank(abs( Work$logFC)))
+    Work$Type <- "Actual Rank"
+    #plot( log(abs( Work$logFC)), Work$y )
+    
+    #Fit Logistic Model:
+    mylogit <- glm(Work$y  ~ abs( Work$logFC), data = FOO, family = "binomial")
+    
+    Work$log_abs_PVal <- abs( Work$logFC)
+    
+    Work2 <- Work  
+    Work2$Type <- "Predicted Weight"
+    #Work2$y <- y <- 1/(1+exp( -( mylogit$coefficients[1]+mylogit$coefficients[2]* abs( Work$logFC) ) ))
+    Work2$y <- 1/(1+exp( -( mylogit$coefficients[1]+mylogit$coefficients[2]* abs( Work$logFC) ) ))
+
+    tWork <- as.data.frame(rbind( Work ,Work2 ))
+    tWork$Sig <- ifelse(tWork$adj.P.Val < 0.05, "YES", "NO" )
+    eval(parse( text=paste0( 'Models$', Tissue, ' <- as.data.frame( tWork )' ) ))
+    
+    #Colors for the sig and non-sig names
+    COLS <- c( "blueviolet","grey29")
+    names(COLS) <- c("YES","NO")
+    
+    #Plot the model
+    if( Tissue == 'CBE' ){
+      eval(parse( text=paste0( 
+        'Pr <- ggplot( data=Models$', Tissue, '[ Models$', Tissue, '$Type == \'Predicted Weight\' & (Models$', Tissue, '$ensembl_gene_id %in% Genes) == T , ], aes(x=log_abs_PVal, y=y, col=Sig)) +
+              geom_point() + 
+              geom_smooth( data=Models$', Tissue, '[ Models$', Tissue, '$Type == \'Predicted Weight\', ], aes(x=log_abs_PVal, y=y), 
+                    method = "glm", 
+                    method.args = list(family = "binomial"), 
+                    colour="black", size=0.5, se = FALSE)  + 
+              xlab("log(abs(LogFC))") + ylab("Model Weight") + ggtitle("',Tissue,'") +
+              theme(plot.title = element_text(vjust = -60, hjust = .9, size = 18, face="bold") ) +
+              geom_label_repel(aes(label = hgnc_symbol, col = Sig),
+                    box.padding   = 0.35, 
+                    point.padding = 0.5,
+                    segment.color = \'grey50\') + 
+              scale_colour_manual( values = COLS ) + 
+              theme(legend.position="none", axis.title.x=element_blank(), axis.title.y=element_blank(),
+                  axis.text.x=element_blank(), axis.ticks.x=element_blank() )'
+      )))
+      eval(parse( text=paste0( 'Plots[["', Tissue, '"]] <- Pr' ) ))
+    }else{
+      eval(parse( text=paste0( 
+        'Pr <- ggplot( data=Models$', Tissue, '[ Models$', Tissue, '$Type == \'Predicted Weight\' & (Models$', Tissue, '$ensembl_gene_id %in% Genes) == T , ], aes(x=log_abs_PVal, y=y, col=Sig)) +
+              geom_point() + 
+              geom_smooth( data=Models$', Tissue, '[ Models$', Tissue, '$Type == \'Predicted Weight\', ], aes(x=log_abs_PVal, y=y), 
+                    method = "glm", 
+                    method.args = list(family = "binomial"), 
+                    colour="black", size=0.5, se = FALSE)  + 
+              xlab("log(abs(LogFC))") + ylab("Model Weight") + ggtitle("',Tissue,'") +
+              theme(plot.title = element_text(vjust = -60, hjust = .9, size = 18, face="bold") ) +
+              geom_label_repel(aes(label = hgnc_symbol, col = Sig),
+                    box.padding   = 0.35, 
+                    point.padding = 0.5,
+                    segment.color = \'grey50\') + 
+              scale_colour_manual( values = COLS ) + 
+              theme(legend.position="none", axis.title.x=element_blank(), axis.title.y=element_blank(),
+                  axis.text.x=element_blank(), axis.ticks.x=element_blank(), axis.text.y=element_blank(), axis.ticks.y=element_blank())'
+      )))
+      eval(parse( text=paste0( 'Plots[["', Tissue, '"]] <- Pr' ) ))
+      
+      ggsave( filename = paste0('DiffExpress_', Sex, '_',Tissue,'.eps'),
+              plot = Pr,
+              device = "eps",
+              path = plotdir
+      )
+      
+    }
+  }
+  return( list( Plots=Plots, Models=Models ) )
+}
+
+#Plot/Run/Build the DE Models
+
+ALL_Mod <- ModelConstruct( DE, 'AD-CONTROL', 'Diagnosis', 'ALL' )
+Male_Mod <- ModelConstruct( DE, NA, NA, 'MALE' )
+Femal_Mod <- ModelConstruct( DE, NA, NA, 'FEMALE' )
+
+REL <- DE[ (DE$ensembl_gene_id %in% Genes) == T , ]
+colnames(REL)[ colnames(REL) == 'ensembl_gene_id'] <- 'ensemblgeneid'
+colnames(REL)[ colnames(REL) == 'hgnc_symbol'] <- 'hgncsymbol'
+
+ALL <- REL[ REL$Sex == 'ALL' & REL$Comparison == "AD-CONTROL" & REL$Model == 'Diagnosis',  c('hgncsymbol','ensemblgeneid','Tissue','logFC','adj.P.Val')] 
+Males <-  REL[ REL$Sex == 'MALE' ,  c('hgncsymbol','ensemblgeneid','Tissue','logFC','adj.P.Val')]
+Females <-  REL[ REL$Sex == 'FEMALE',  c('hgncsymbol','ensemblgeneid','Tissue','logFC','adj.P.Val')]
+
+colnames(Tab)[ colnames(Tab) == 'Gene_Name' ] <- 'GeneName'
+DE_Plots <- function( INPUT ){
+  #Plots the table of the DE of the gene list
+  #'@INPUT The input differential expression objects e.g ALL
+  Gen <- as.character(INPUT$ensemblgeneid)[ !duplicated(as.character(INPUT$ensemblgeneid))]
+  DF <- as.data.frame(matrix(0,length(Gen),9))
+  row.names( DF ) <- Gen
+  colnames( DF ) <- c( 'ENSG', 'GeneName', Tissues)
+  DF$ENSG <- Gen
+  DF$GeneName <- Tab[ DF$ENSG, ]$GeneName
+
+  for( row in row.names(DF)){
+    for( col in colnames(DF)[ colnames(DF) %in% c("CBE", "DLPFC", "FP", "IFG", "PHG", "STG", "TCX") ]){
+      #Test if the the gene and tissue exist:
+      if( row %in% as.character( INPUT[  INPUT$Tissue == col, ]$ensemblgeneid ) ){
+        DF[ row, col ] <- signif( INPUT[ INPUT$ensemblgeneid == row & INPUT$Tissue == col, ]$logFC, 3)
+      }else{
+        DF[ row, col ] <- NA
+      }
+    }
+  }
+
+  #P Vals
+  colnames(Tab)[ (colnames(Tab) %in% 'Gene_Name') == T ] <- 'GeneName'
+  pDF <- as.data.frame(matrix(0,length(Gen),9))
+  row.names( pDF ) <- Gen
+  colnames( pDF ) <- c( 'ENSG', 'GeneName', Tissues)
+  pDF$ENSG <- Gen
+  pDF$GeneName <- Tab[ pDF$ENSG , ]$GeneName
+
+  for( row in row.names(pDF)){
+    for( col in colnames(pDF)[ colnames(pDF) %in% c("CBE", "DLPFC", "FP", "IFG", "PHG", "STG", "TCX") ]){
+      if( row %in% as.character( INPUT[  INPUT$Tissue == col, ]$ensemblgeneid ) ){
+        pDF[ row, col ] <- INPUT[ INPUT$ensemblgeneid == row & INPUT$Tissue == col, ]$adj.P.Val
+      }else{
+        pDF[ row, col ] <- 40
+      }
+    }
+  }
+ 
+  
+  
+  
+  return( DF %>% 
+    mutate(
+      CBE = cell_spec( CBE, bold = ifelse(pDF$CBE < 0.05, TRUE, FALSE ), color = ifelse(pDF$CBE < 0.05, ifelse(DF$CB < 0, "red", "green"), rgb(211/255,211/255,211/255)) ) ,
+      DLPFC = cell_spec(DLPFC, bold = ifelse(pDF$DLPFC < 0.05, TRUE, FALSE ),color = ifelse(pDF$DLPFC < 0.05, ifelse(DF$DLPFC < 0, "red", "green"), rgb(211/255,211/255,211/255) )),
+      FP = cell_spec(FP, bold = ifelse(pDF$FP < 0.05, TRUE, FALSE ),color = ifelse(pDF$FP < 0.05, ifelse(DF$FP < 0, "red", "green"), rgb(211/255,211/255,211/255) )),
+      IFG = cell_spec(IFG, bold = ifelse(pDF$IFG < 0.05, TRUE, FALSE ),color = ifelse(pDF$IFG < 0.05, ifelse(DF$IFG < 0, "red", "green"), rgb(211/255,211/255,211/255) )),
+      PHG = cell_spec(PHG, bold = ifelse(pDF$PHG < 0.05, TRUE, FALSE ), color = ifelse(pDF$PHG < 0.05, ifelse(DF$PHG < 0, "red", "green"), rgb(211/255,211/255,211/255) )),
+      STG = cell_spec(STG, bold = ifelse(pDF$STG < 0.05, TRUE, FALSE ),color = ifelse(pDF$STG < 0.05, ifelse(DF$STG < 0, "red", "green"), rgb(211/255,211/255,211/255) )),
+      TCX = cell_spec(TCX, bold = ifelse(pDF$TCX < 0.05, TRUE, FALSE ),color = ifelse(pDF$TCX < 0.05, ifelse(DF$TCX < 0, "red", "green"), rgb(211/255,211/255,211/255) ))
+    ) %>%
+    kable( escape = F, row.names = FALSE) %>%
+    kable_styling("striped", full_width = FALSE, position="left") )
+  
+  
+}
+```
+
+
+#### All Cases Versus Controls
+
+```{r  ALL_DE, echo=FALSE, warning=F, fig.width=12, fig.height=6, warning=F }
+
+DE_Plots(ALL)
+save_kable(
+  DE_Plots(ALL),
+  file=paste0(tabledir,'/DiffExp_ALL.pdf')
+)
+```
+
+```{r  ALL_DE2, echo=FALSE, fig.width=12, fig.height=6, warning=F }
+
+lay <- rbind(c(1,2,3,4,7),
+             c(1,2,5,6,7))
+
+g1 <- ggplotGrob(ALL_Mod$Plots$CBE)
+g2 <- ggplotGrob(ALL_Mod$Plots$DLPFC)
+g3 <- ggplotGrob( ALL_Mod$Plots$FP)
+g4 <- ggplotGrob(ALL_Mod$Plots$IFG)
+g5 <- ggplotGrob(ALL_Mod$Plots$PHG)
+g6 <- ggplotGrob( ALL_Mod$Plots$STG)
+g7 <- ggplotGrob(ALL_Mod$Plots$TCX)
+
+gs = list( g1, g2, g3, g4, g5, g6, g7 )
+           
+plot( grid.arrange(grobs = gs, layout_matrix = lay, left = "Calculated Weight", bottom = "Absolute Value of Log(Fold Change)") )
+```
+
+
+#### Female Cases Versus Controls
+```{r  Female_DE, echo =F, fig.width=12, fig.height=6, warning=F}
+
+DE_Plots(Females)
+save_kable(
+  DE_Plots(Females),
+  file=paste0(tabledir,'/DiffExp_Females.pdf')
+)
+
+lay <- rbind(c(1,2,3,4,7),
+             c(1,2,5,6,7))
+
+g1 <- ggplotGrob(Femal_Mod$Plots$CBE)
+g2 <- ggplotGrob(Femal_Mod$Plots$DLPFC)
+g3 <- ggplotGrob( Femal_Mod$Plots$FP)
+g4 <- ggplotGrob(Femal_Mod$Plots$IFG)
+g5 <- ggplotGrob(Femal_Mod$Plots$PHG)
+g6 <- ggplotGrob( Femal_Mod$Plots$STG)
+g7 <- ggplotGrob(Femal_Mod$Plots$TCX)
+
+gs = list( g1, g2, g3, g4, g5, g6, g7 )
+           
+grid.arrange(grobs = gs, layout_matrix = lay)
+
+```
+
+#### Male Cases Versus Controls
+
+
+```{r  Male_DE, echo =F, fig.width=12, fig.height=6, warning=F}
+
+DE_Plots(Males)
+save_kable(
+  DE_Plots(Males),
+  file=paste0(tabledir,'/DiffExp_Males.pdf')
+)
+```
+
+```{r  Male_DEPlot, echo =F, fig.width=12, fig.height=6, warning=F}
+lay <- rbind(c(1,2,3,4,7),
+             c(1,2,5,6,7))
+
+g1 <- ggplotGrob(Male_Mod$Plots$CBE)
+g2 <- ggplotGrob(Male_Mod$Plots$DLPFC)
+g3 <- ggplotGrob( Male_Mod$Plots$FP)
+g4 <- ggplotGrob(Male_Mod$Plots$IFG)
+g5 <- ggplotGrob(Male_Mod$Plots$PHG)
+g6 <- ggplotGrob( Male_Mod$Plots$STG)
+g7 <- ggplotGrob(Male_Mod$Plots$TCX)
+
+gs = list( g1, g2, g3, g4, g5, g6, g7 )
+           
+grid.arrange(grobs = gs, layout_matrix = lay)
+```
+
+
+### Differential Proteomics
+
+```{r Proteomics, echo =F, warning=F }
+Prot <- read.csv( file = "/Users/jgockley/Desktop/Projects/AMP-AD_Targets/Candidate_Target_Profiler/RefrenceData/Final_Agora_DE.csv", header = T)
+Prot <- Prot[ complete.cases(Prot[,c("Log2_FC", "CI_Upr", "CI_Lwr", "PVal", "Cor_PVal")]), ]
+Prot <- Prot[complete.cases(Prot),]
+
+TargetP <- Prot[ Prot$ENSG %in% Genes,]
+
+Names <- paste0(TargetP$UniqID, '|', TargetP$ENSG)
+Names <- Names[!duplicated(Names)]
+PTab <- do.call( rbind, strsplit( Names, '\\|' ))
+
+if( table(Genes %in% PTab[,3])['TRUE'] == length(Genes) ){
+  Res <- PTab
+}else{
+  Adds <- Genes[ (Genes %in% PTab[,3]) == F ]
+  Res <- rbind( PTab, cbind( Tab[Adds,]$GeneName, NA, Adds ))
+}
+
+row.names(Res) <- paste0( Res[,1], '|', Res[,2])
+Res <- as.data.frame(Res)
+colnames( Res ) <- c( "GeneName", "UniProt", "ENSG")
+
+Tiss <- as.character(TargetP$Tissue)[ !duplicated(as.character(TargetP$Tissue)) ]
+Adds <- matrix(0, dim(Res)[1], 4)
+row.names(Adds) <- row.names(Res)
+colnames(Adds) <- c("AntPFC", "DLPFC", "MFG", "TCX" )
+
+TotP <- as.data.frame(cbind(Res, Adds))
+TotPval <- as.data.frame(cbind(Res, Adds))
+
+for( row in row.names(TotP)){
+  for( col in colnames(TotP)){
+    if( isTRUE(row %in%TargetP$UniqID) ){
+      TP <- TargetP[ TargetP$UniqID == row,]
+      if( isTRUE(col %in% TP$Tissue) ){
+        TotP[row,col] <- signif( TP[ as.character(TP$Tissue)==col ,]$Log2_FC, 3 )
+      }else{}
+    }else{
+      
+    }
+  }
+}
+
+for( row in row.names(TotPval)){
+  for( col in colnames(TotPval)){
+    if( isTRUE(row %in%TargetP$UniqID) ){
+      TP <- TargetP[ TargetP$UniqID == row,]
+      if( isTRUE(col %in% TP$Tissue) ){
+        TotPval[row,col] <- TP[ as.character(TP$Tissue)==col ,]$Cor_PVal
+      }else{}
+    }else{
+      
+    }
+  }
+}
+
+TotP %>% 
+    mutate(
+      AntPFC = cell_spec(AntPFC, bold = ifelse(TotPval$AntPFC < 0.05, TRUE, FALSE ),color = ifelse(TotPval$AntPFC == 0, "white", ifelse(TotPval$AntPFC < 0.05, ifelse(TotP$AntPFC < 0, "red", "green"), "grey" ))),
+      DLPFC = cell_spec(DLPFC, bold = ifelse(TotPval$DLPFC < 0.05, TRUE, FALSE ), color = ifelse(TotPval$DLPFC == 0, "white", ifelse(TotPval$DLPFC < 0.05, ifelse(TotP$DLPFC < 0, "red", "green"), "grey" ))),
+      MFG = cell_spec(MFG, bold = ifelse(TotPval$MFG < 0.05, TRUE, FALSE ),color = ifelse(TotPval$MFG == 0, "white", ifelse(TotPval$MFG < 0.05, ifelse(TotP$MFG < 0, "red", "green"), "grey" ))),
+      TCX = cell_spec(TCX, bold = ifelse(TotPval$TCX < 0.05, TRUE, FALSE ),color = ifelse(TotPval$TCX == 0, "white", ifelse(TotPval$TCX < 0.05, ifelse(TotP$TCX < 0, "red", "green"), "grey" )))
+    ) %>%
+    select(GeneName, UniProt, ENSG, AntPFC, DLPFC, MFG, TCX)  %>%
+    kable( escape = F) %>%
+    kable_styling("striped", full_width = F)
+
+save_kable(
+  TotP %>% 
+    mutate(
+      AntPFC = cell_spec(AntPFC, bold = ifelse(TotPval$AntPFC < 0.05, TRUE, FALSE ),color = ifelse(TotPval$AntPFC == 0, "white", ifelse(TotPval$AntPFC < 0.05, ifelse(TotP$AntPFC < 0, "red", "green"), "grey" ))),
+      DLPFC = cell_spec(DLPFC, bold = ifelse(TotPval$DLPFC < 0.05, TRUE, FALSE ), color = ifelse(TotPval$DLPFC == 0, "white", ifelse(TotPval$DLPFC < 0.05, ifelse(TotP$DLPFC < 0, "red", "green"), "grey" ))),
+      MFG = cell_spec(MFG, bold = ifelse(TotPval$MFG < 0.05, TRUE, FALSE ),color = ifelse(TotPval$MFG == 0, "white", ifelse(TotPval$MFG < 0.05, ifelse(TotP$MFG < 0, "red", "green"), "grey" ))),
+      TCX = cell_spec(TCX, bold = ifelse(TotPval$TCX < 0.05, TRUE, FALSE ),color = ifelse(TotPval$TCX == 0, "white", ifelse(TotPval$TCX < 0.05, ifelse(TotP$TCX < 0, "red", "green"), "grey" )))
+    ) %>%
+    select(GeneName, UniProt, ENSG, AntPFC, DLPFC, MFG, TCX)  %>%
+    kable( escape = F) %>%
+    kable_styling("striped", full_width = F),
+  
+  file=paste0(tabledir,'/Diff_Protiens.pdf')
+)
+
+```
+
+### eQTL
+
+```{r eQTL, echo = F, warning=F}
+####Need eQTL AD analysis from Solly!!!
+
+#syn12514912
+eqtl <- read.csv( file ="/Users/jgockley/Desktop/Projects/AMP-AD_Targets/Candidate_Target_Profiler/RefrenceData/eqtl_meta_analysis.csv", header=T)
+uEQs <- eqtl[ (eqtl$ensembl_gene_id %in% Genes) == T,]
+
+uEQs$hasEqtl <- as.character(uEQs$hasEqtl)
+Rep <- c("NO", "YES")
+names(Rep) <- c('FALSE', 'TRUE')
+uEQs$hasEqtl <- as.character(Rep[ as.character(uEQs$hasEqtl) ])
+
+```
+
+### AD Associated Module Clustering from Meta-Network 
+
+```{r Network, echo = F, warning=F}
+Nets <- read.csv(file ="/Users/jgockley/Desktop/Projects/AMP-AD_Targets/Candidate_Target_Profiler/RefrenceData/Network.csv", header=T)
+ZoomNet <- Nets[ (Nets$GeneID %in% Genes) == T, ]
+
+NetPlot <- as.data.frame(matrix(0,length(Genes),5))
+row.names(NetPlot) <- Genes
+NetPlot$V1 <- row.names(NetPlot)
+colnames(NetPlot) <- c("ENSG", "GeneName", "InACluster", "NumberOfClusters", "BrainRegions")
+
+for( g in Genes ){
+  if( dim(ZoomNet[ as.character(ZoomNet$GeneID) == NetPlot[g,]$ENSG, ])[1] > 0 ){
+    NetPlot[g,]$GeneName <- names( table( as.character( ZoomNet[ as.character(ZoomNet$GeneID) == NetPlot[g,]$ENSG, ]$external_gene_name ) ) )
+    NetPlot[g,]$InACluster <- 'YES'
+    tmp <- ZoomNet[ as.character(ZoomNet$GeneID) == NetPlot[g,]$ENSG, ]
+    NetPlot[g,]$NumberOfClusters <- length(tmp$Module)
+    Regions <- c(as.character(tmp$brainRegion))
+    NetPlot[g,]$BrainRegions <- paste( Regions[ !duplicated(Regions) ], collapse = ', ')
+  }else{
+    NetPlot[g,]$GeneName <- as.character( TotP[ TotP$ENSG == g, ]$GeneName )
+    NetPlot[g,]$InACluster <- 'NO'
+    NetPlot[g, 3:5] <- NA
+  }
+}
+
+NetPlot %>% 
+    select(ENSG, GeneName, InACluster, NumberOfClusters, BrainRegions)  %>%
+    kable( escape = F, row.names = FALSE) %>%
+    kable_styling("striped", full_width = F)
+
+save_kable(
+  NetPlot %>% 
+    select(ENSG, GeneName, InACluster, NumberOfClusters, BrainRegions)  %>%
+    kable( escape = F, row.names = FALSE) %>%
+    kable_styling("striped", full_width = F),
+  
+  file=paste0(tabledir,'/InNetCluster.pdf')
+)
+
+Regions <- as.data.frame( table(ZoomNet$brainRegion) )
+colnames(Regions) <- c("Region", "Targets")
+
+
+
+Targets <-as.data.frame(Regions)
+Targets %>% 
+    select(Region, Targets)  %>%
+    kable( escape = F, row.names = FALSE) %>%
+    kable_styling("striped", full_width = F)
+
+save_kable(
+  Targets %>% 
+    select(Region, Targets)  %>%
+    kable( escape = F, row.names = FALSE) %>%
+    kable_styling("striped", full_width = F),
+  
+  file=paste0(tabledir,'/Targets_by_Region.pdf')
+)
+
+
+```
+
+
+### AD Associated Module Clustering
+```{r Heatmap, echo = F, warning=F}
+library(gplots)
+library(superheat)
+
+Mods <- as.character(ZoomNet$Module)
+Mods <- Mods[ !duplicated(Mods) ]
+
+dim( table( ZoomNet[ ZoomNet$brainRegion == 'DLPFC', ]$ModuleName,  ZoomNet[ ZoomNet$brainRegion == 'DLPFC', ]$external_gene_name ) )
+
+
+HM_Mat <- matrix( 0, length(Genes), length(Mods) )
+row.names(HM_Mat) <- as.character(NetPlot$GeneName)
+colnames(HM_Mat) <- Mods
+
+trans <- NetPlot$GeneName
+names(trans) <- NetPlot$ENSG
+
+for( i in 1:dim(ZoomNet)[1] ){
+  HM_Mat[ trans[as.character( ZoomNet[ i, ]$GeneID )], 
+          as.character( ZoomNet[ i, ]$Module ) ] <- 1
+}
+
+PAL <- colorRampPalette(c( "white", "red"))(n = 2)
+heatmap.2(as.matrix(HM_Mat), col=PAL, key = FALSE,
+          tracecol=NA, cexRow = .9, cexCol=.75) 
+
+setEPS()
+postscript(file = paste0(plotdir,'/ModuleHeatMap.eps') )
+  heatmap.2(as.matrix(HM_Mat), col=PAL, key = FALSE,
+          tracecol=NA, cexRow = .9, cexCol=.75)
+dev.off()
+
+```
+
+```{r ModuleFunction, echo = F, warning=F}
+#Figure 2A: https://www.biorxiv.org/content/biorxiv/early/2019/01/03/510420.full.pdf
+Consensus_Cluster_A <- c("TCXblue", "IFGyellow", "PHGyellow")
+Consensus_Cluster_B <- c("DLPFCblue", "CBEturquoise", "STGblue", "PHGturquoise", "IFGturquoise", "TCXturquoise", "FPturquoise")
+Consensus_Cluster_C <- c("IFGbrown", "STGbrown", "DLPFCyellow", "TCXgreen", "FPyellow", "CBEyellow", "PHGbrown" )
+Consensus_Cluster_D <- c("DLPFCbrown", "STGyellow", "PHGgreen", "CBEbrown", "TCXyellow", "IFGblue", "FPblue")
+Consensus_Cluster_E <- c("FPbrown", "CBEblue", "DLPFCturquoise", "TCXbrown", "STGturquoise", "PHGblue")
+
+ConClust <- as.data.frame( cbind( c(Consensus_Cluster_A, Consensus_Cluster_B, Consensus_Cluster_C, Consensus_Cluster_D, Consensus_Cluster_E),
+                      c( rep("A", length(Consensus_Cluster_A)) ,rep("B", length(Consensus_Cluster_B)), rep("C", length(Consensus_Cluster_C)),
+                      rep("D", length(Consensus_Cluster_D)), rep("E", length(Consensus_Cluster_E))) ))
+
+AllGenes <- Nets$GeneID[ !duplicated(Nets$GeneID) ]
+
+colnames(ConClust) <- c("Module", "ConesusCluster")
+row.names(ConClust) <- ConClust$Module
+
+#-#TempClust <- as.data.frame( matrix(0, length(Genes), 5))
+TempClust <- as.data.frame( matrix(0, length(AllGenes), 5))
+#-#row.names(TempClust) <- Genes
+row.names(TempClust) <- AllGenes
+colnames(TempClust) <- c("A", "B", "C", "D", "E")
+
+for( i in AllGenes){
+  #tmp_cs <- table( as.character( ConClust[ as.character(ZoomNet[ ZoomNet$GeneID == i, ]$Module), ]$ConesusCluster ) )
+  tmp_cs <- table( as.character( ConClust[ as.character(Nets[ Nets$GeneID == i, ]$Module), ]$ConesusCluster ) )
+  for(y in names(tmp_cs)){
+    TempClust[ i, y] <- as.numeric(tmp_cs[y])
+  }
+}
+
+
+#-#row.names(TempClust) <- as.character( trans[ row.names(TempClust)] )
+tNets <- Nets[ !duplicated(Nets$GeneID), ]
+row.names(tNets) <- tNets$GeneID
+
+#row.names(TempClust) <-tNets[ row.names(tNets),]$external_gene_name
+
+#Fix the repeats...
+PAL <- colorRampPalette(c( "white", "yellow", "red"))(n = 10)
+
+HM <- heatmap.2(as.matrix(TempClust), col=PAL, key = FALSE,
+          tracecol=NA, cexRow = .9, cexCol=.75)
+hc <- hclust(dist(TempClust), "complete")
+plot(hc, xlab="", ylab="", main="", sub="", axes=FALSE)
+par(cex=1)
+
+
+#TC.pca <- prcomp(t(TempClust), center = TRUE)
+#summary( TC.pca )
+
+#plot(TC.pca$)
+
+Tempclust <- TempClust[rownames(TempClust) %in% Genes,] 
+row.names(Tempclust) <- trans[row.names(Tempclust)]
+
+save_kable(
+  Tempclust %>% 
+    select( A, B, C, D, E)  %>%
+    kable( escape = F, row.names = TRUE) %>%
+    kable_styling("striped", full_width = F),
+  file=paste0(tabledir,'/ConsensousCluster.pdf')
+)
+
+ 
+Tempclust %>% 
+    select( A, B, C, D, E)  %>%
+    kable( escape = F, row.names = TRUE) %>%
+    kable_styling("striped", full_width = F)
+
+
+#####
+#TotalCls <- table( Nets$GeneID, Nets$Module )
+#TC.pca <- prcomp(TotalCls, center = TRUE)
+#summary( TC.pca )
+#dim(TC.pca$x)
+#plot(TC.pca$x[,1], TC.pca$x[,2])
+
+#screeplot( TC.pca )
+
+#library(irlba)
+#library(cluster)
+#library(tidyverse)  # data manipulation
+#library(factoextra)
+#library(sparcl)
+
+
+#foo <- KMeansSparseCluster(FOO, K=10, wbounds = NULL, nstart = 20, silent =
+#FALSE, maxiter=6)
+#plot(foo)
+
+#Clus <- hclust(dist(TotalCls), "complete")
+#Dis <- as.dist(1 - cor(t(TotalCls)))
+#plot(hclust(Dis), main="Dissimilarity = 1 - Correlation", labels=FALSE)
+
+
+#plot(hclust(dist(TotalCls)), labels=FALSE)
+
+
+#s <- irlba(TotalCls, nu = 0, nv=10)
+#TotalCls_reduced <- as.matrix(TotalCls %*% s$v)
+#clust_kmeans <- kmeans(TotalCls_reduced, 10)
+#summary(silhouette(clust_kmeans$cluster, dist(TotalCls_reduced)))
+
+#FOO <- matrix( 0, dim(TotalCls)[1], dim(TotalCls)[2] )
+#row.names(FOO) <- row.names(TotalCls)
+#colnames(FOO) <- colnames(TotalCls)
+
+#for( i in 1:30 ){
+#  FOO[,i] <- TotalCls[,i]
+#}
+
+#Dis <- dist(FOO)
+#Cor <- cor(t(FOO))
+#
+#Att <- as.vector(Cor)
+
+
+#N <- 0
+
+#Att <- as.list(Cor)
+#foo<- as.data.frame(as.matrix(Att))
+ 
+#Meh <- NULL
+#for( i in 1:length(row.names(Cor))){ Meh <- c(Meh, rep( row.names(Cor)[i], length(row.names(Cor)) )) }
+#foo$V3 <- rep( row.names(Cor), length(row.names(Cor)) ) 
+#foo$V2 <- Meh
+
+#for( i in 1:(dim(Cor)[1]-1) ){
+#  N <- N+i
+#}
+#Comps <- as.data.frame( matrix( 0, 0, 3 ) )
+
+#Rs <- row.names(Cor)
+#Cs <- colnames(Cor)
+#i <- 0
+
+#for( Name in Rs ){
+#  temp <- Cs[ (Cs %in% Name) == F ]
+#  for( Other in temp){
+    #i <- i+1
+    #Comps <- rbind( Comps[ 1:dim(Comps)[1], ], c(Name, Other, Cor[ Name,Other ]) )
+#  }
+#}
+
+#fviz_cluster(clust_kmeans, data = FOO, geom = c("point"))
+
+```
+
+### Module Celltype Enrichments
+
+```{r CelltpyeEnrich, echo = F, warning=F }
+
+Lake <- read.csv( file="/Users/jgockley/Desktop/Projects/AMP-AD_Targets/Candidate_Target_Profiler/RefrenceData/lakeCellDf.csv", header = T )
+Lake <- Lake[ Lake$adj.pval < 0.05, ]
+Lake$Module <- as.character(Lake$Module)
+Zhang <- read.csv( file="/Users/jgockley/Desktop/Projects/AMP-AD_Targets/Candidate_Target_Profiler/RefrenceData/zhangCellDf.csv", header = T )
+Zhang <- Zhang[ Zhang$adj.pval < 0.05, ]
+Zhang$Module <- as.character(Zhang$Module)
+
+
+Zrich <- as.data.frame( matrix(0, length(Genes), length(table(Zhang$category)) ))
+row.names(Zrich) <- trans[Genes]
+colnames(Zrich) <- names(table(Zhang$category))
+
+Lrich <- as.data.frame( matrix(0, length(Genes), length(table(Lake$category)) ))
+row.names(Lrich) <- trans[Genes]
+colnames(Lrich) <- names(table(Lake$category))
+
+
+for( gene in Genes ){
+  lyst <- as.character( ZoomNet[ ZoomNet$GeneID == gene, ]$Module )
+  foo <- Lake[ as.character(Lake$Module) %in% lyst ==T , ]
+  for( Cell in as.character(foo$category) ){
+    Lrich[ trans[gene], Cell  ] <- Lrich[ trans[gene], Cell  ] + 1
+  }
+  foo <- Zhang[ as.character(Zhang$Module) %in% lyst ==T , ]
+  for( Cell in as.character(foo$category) ){
+    Zrich[ trans[gene], Cell  ] <- Zrich[ trans[gene], Cell  ] + 1
+  }
+}
+save_kable(
+   Zrich %>% 
+    kable( escape = F, row.names = TRUE) %>%
+    kable_styling("striped", full_width = F),
+   file=paste0(tabledir,'/ZhangSingleCell.pdf')
+)
+save_kable(
+   Lrich %>% 
+    kable( escape = F, row.names = TRUE) %>%
+    kable_styling("striped", full_width = F),
+   file=paste0(tabledir,'/LakeSingleCell.pdf')
+)
+Zrich %>% 
+    kable( escape = F, row.names = TRUE) %>%
+    kable_styling("striped", full_width = F)
+
+Lrich %>% 
+    kable( escape = F, row.names = TRUE) %>%
+    kable_styling("striped", full_width = F)
+
+PAL <- colorRampPalette(c( "white", "yellow", "red"))(n = 50)
+
+
+setEPS()
+postscript(file = paste0(plotdir,'/ZhangCellTypeHeatMap.eps') )
+  heatmap.2(as.matrix(Zrich), col=PAL, key = FALSE,
+          tracecol=NA, cexRow = .9, cexCol=.75)
+dev.off()
+
+setEPS()
+postscript(file = paste0(plotdir,'/LakeCellTypeHeatMap.eps') )
+  heatmap.2(as.matrix(Lrich), col=PAL, key = FALSE,
+          tracecol=NA, cexRow = .9, cexCol=.75)
+dev.off()
+
+heatmap.2(as.matrix(Zrich), col=PAL, key = FALSE,
+          tracecol=NA, cexRow = .9, cexCol=.75)
+
+heatmap.2(as.matrix(Lrich), col=PAL, key = FALSE,
+          tracecol=NA, cexRow = .9, cexCol=.75)
+
+```
+
+#### Load the Modules and create tissue specific Consensus Groups
+```{r GeneConsensus, echo = F, warning=F  }
+
+Consensus_Cluster_A <- c("TCXblue", "IFGyellow", "PHGyellow")
+Consensus_Cluster_B <- c("DLPFCblue", "CBEturquoise", "STGblue", "PHGturquoise", "IFGturquoise", "TCXturquoise", "FPturquoise")
+Consensus_Cluster_C <- c("IFGbrown", "STGbrown", "DLPFCyellow", "TCXgreen", "FPyellow", "CBEyellow", "PHGbrown" )
+Consensus_Cluster_D <- c("DLPFCbrown", "STGyellow", "PHGgreen", "CBEbrown", "TCXyellow", "IFGblue", "FPblue")
+Consensus_Cluster_E <- c("FPbrown", "CBEblue", "DLPFCturquoise", "TCXbrown", "STGturquoise", "PHGblue")
+
+Trans <- c(rep( "A", 3), rep( "B", 7), rep( "C", 7), rep( "D", 7), rep( "E", 6))
+names(Trans) <- c("TCXblue", "IFGyellow", "PHGyellow", "DLPFCblue", "CBEturquoise", "STGblue", "PHGturquoise", "IFGturquoise", "TCXturquoise", "FPturquoise", "IFGbrown", "STGbrown", "DLPFCyellow", "TCXgreen", "FPyellow", "CBEyellow", "PHGbrown", "DLPFCbrown", "STGyellow", "PHGgreen", "CBEbrown", "TCXyellow", "IFGblue", "FPblue", "FPbrown", "CBEblue", "DLPFCturquoise", "TCXbrown", "STGturquoise", "PHGblue")
+
+Nets$ConsensusCluster <- Trans[Nets$Module]
+
+GeneLvl_ConsensusClust <- list()
+for( tissue in names(table( Nets$brainRegion )) ){
+  for( clust in names(table( Nets$ConsensusCluster ))){
+    eval(parse( text=paste0( 'temp <- as.character(Nets[ as.character(Nets$brainRegion) == "', tissue, '" & as.character(Nets$ConsensusCluster) == "', clust,'", ]$GeneID) ')))
+    if( length(temp) > 0 ){
+          eval(parse( text=paste0( 'GeneLvl_ConsensusClust$', tissue, '$', clust, ' <- temp[ !duplicated(temp) ]' ) ))
+
+    }
+  }
+}
+names(table( Nets$ConsensusCluster ))
+
+
+#Load the Tissue Expression 
+library(data.table)
+MSBB <- fread( file ='/Users/jgockley/Desktop/Projects/AMP-AD_Targets/Candidate_Target_Profiler/RefrenceData/MSSM_FP_STG_PHG_IFG_netResidualExpression.tsv', sep = '\t', header = T )
+row.names(MSBB) <- MSBB$ensembl_gene_id
+MSBB <-as.data.frame(MSBB)
+MSBB_Cov <- fread( file ='/Users/jgockley/Desktop/Projects/AMP-AD_Targets/Candidate_Target_Profiler/RefrenceData/MSSM_FP_STG_PHG_IFG_Covariates.tsv', sep = '\t', header = T )
+
+Mayo <- fread( file ='/Users/jgockley/Desktop/Projects/AMP-AD_Targets/Candidate_Target_Profiler/RefrenceData/MAYO_CBE_TCX_netResidualExpression.tsv', sep = '\t', header = T )
+row.names(Mayo) <- Mayo$ensembl_gene_id
+Mayo <-as.data.frame(Mayo)
+
+Rosmap <- fread( file ='/Users/jgockley/Desktop/Projects/AMP-AD_Targets/Candidate_Target_Profiler/RefrenceData/ROSMAP_DLPFC_netResidualExpression.tsv', sep = '\t', header = T )
+row.names(Rosmap) <- Rosmap$ensembl_gene_id
+Rosmap <-as.data.frame(Rosmap)
+
+
+MSBB_CoVar <- fread( file ='/Users/jgockley/Desktop/Projects/AMP-AD_Targets/Candidate_Target_Profiler/RefrenceData/MSBB_SVA_Covariates.tsv', header=T, sep='\t' )
+MSBB_CoVar$Tissue <- do.call( rbind, strsplit( MSBB_CoVar$Tissue.Diagnosis, "[.]") )[,1]
+
+row.names( Mayo ) <- Mayo$ensembl_gene_id
+row.names( Rosmap ) <- Rosmap$ensembl_gene_id
+row.names( MSBB ) <- MSBB$ensembl_gene_id
+
+#Get Tissue Specific Expression Data Frames
+DLPFC_exp  <- Rosmap[ , colnames(Rosmap)[colnames(Rosmap) != "ensembl_gene_id"]]
+TCX_exp <- Mayo[ , colnames(Mayo)[grepl( 'TCX', colnames(Mayo)) == T]   ]
+CBE_exp <- Mayo[ , colnames(Mayo)[grepl( 'CER', colnames(Mayo)) == T]   ]
+FP_exp <- MSBB[ ,MSBB_CoVar[ MSBB_CoVar$Tissue == 'FP', ]$SampleID ]
+STG_exp <- MSBB[ ,MSBB_CoVar[ MSBB_CoVar$Tissue == 'STG', ]$SampleID ]
+IFG_exp <- MSBB[ ,MSBB_CoVar[ MSBB_CoVar$Tissue == 'IFG', ]$SampleID ]
+PHG_exp <- MSBB[ ,MSBB_CoVar[ MSBB_CoVar$Tissue == 'PHG', ]$SampleID ]
+
+#Calculate Eigen values
+#library(rsvd)
+EigenComp <- function( Exp, ENSG ){
+  #'@Exp an expression matrix eg. CBE_exp
+  #'@ENSG the gene ENSGs in the merged consensus cluster modules for moduleXtissue eg. GeneLvl_ConsensusClust$CBE$A
+  #Exp <- CBE_exp
+  #ENSG <- GeneLvl_ConsensusClust$CBE$A
+  
+  tmp <- row.names(Exp)
+  Exp <- as.matrix( as.data.frame(lapply(Exp, as.numeric)) ) 
+  row.names(Exp) <- tmp
+  colnames(Exp) <- gsub( "X", "", colnames(Exp))
+  
+  foo <- Exp[ ENSG, ]
+  foo<- as.matrix(foo)
+  temp <- svd( dist(t(foo)) )
+  eigengenes <- as.vector( svd(dist(t(foo)), nv = 1 )$v )
+  names(eigengenes) <- colnames( Exp[ ENSG, ] )
+  temp <- cor.test( as.numeric(as.character(Exp[ ENSG, ][1,])), eigengenes)
+
+  Look <- as.data.frame(matrix( NA, 1,3))#CBE_exp
+
+  for( i in row.names( Exp )){
+    temp <- cor.test( Exp[ i, ], eigengenes)
+    Look <- as.data.frame(rbind( Look[1:dim(Look)[1],], c( i, temp$estimate, temp$p.value) ))
+    Look <- na.omit(Look)
+  }
+  Look <- na.omit(Look)
+  Look$fdrCorP <- p.adjust(Look$V3, method = "fdr", n = dim(Look)[1])
+  Look$InConsensusMod <- Look$V1 %in% GeneLvl_ConsensusClust$CBE$A
+  return(Look)
+}
+
+GeneStandModuleByTissue <- list()
+```
+
+```{r GeneConsensus_V3, echo = F, warning=F, eval=F  }
+##Need to fix
+GeneStandModuleByTissue$CBE$A <- EigenComp(CBE_exp,GeneLvl_ConsensusClust$CBE$A)
+GeneStandModuleByTissue$CBE$B <- EigenComp(CBE_exp,GeneLvl_ConsensusClust$CBE$B)
+
+GeneStandModuleByTissue$CBE$B <- EigenComp(CBE_exp,GeneLvl_ConsensusClust$CBE$B)
+GeneStandModuleByTissue$CBE$B <- EigenComp(CBE_exp,GeneLvl_ConsensusClust$CBE$B)
+
+
+wilcox.test( -log(Look[ Look$InConsensusMod == T,]$fdrCorP), -log(Look[ Look$InConsensusMod == F,]$fdrCorP))
+wilcox.test( -log(Look[ Look$InConsensusMod == T,]$fdrCorP), -log(Look$fdrCorP))
+```

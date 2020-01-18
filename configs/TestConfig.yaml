@@ -1,0 +1,12 @@
+name: configs/TestConfig.yaml
+parentID: syn21532475
+runID: Test
+tissue:
+  - CBE
+  - DLPFC
+  - FP
+  - IFG
+  - PHG
+  - STG
+  - TCX
+

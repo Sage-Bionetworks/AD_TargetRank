@@ -1,0 +1,69 @@
+---
+title: "AD Target Gene Report"
+author: "Jake Gockley"
+date: "11/11/2019"
+header-includes:
+  - \usepackage{multicol}
+  - \newcommand{\btwocol}{\begin{multicols}{2}}
+  - \newcommand{\etwocol}{\end{multicols}}
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = F)
+library(readr)
+library(biomaRt)
+library(knitr)
+library(kableExtra)
+library(tidyverse)
+library(grid)
+library(dplyr)
+library(ggplot2)
+library(ggrepel)
+library(gridExtra)
+library(yaml)
+```
+
+```{r yamlIMPT, eval = F, include=FALSE}
+#Assign your YAML formated config file to a varable
+YAML_Config <- "YAML_FILE"
+
+setwd("~/AD_TargetRank/")
+source("~/AD_TargetRank/utilityFunctions/knitfile2synapseClient.R")
+source("~/AD_TargetRank/utilityFunctions/hook_synapseMdSyntax_plot.R")
+createAndKnitToFolderEntityClient(file = "CMC_ACC_Exp_DataProcessing_V2.Rmd",
+                                          parentId ="syn21478397",
+                                          folderName = 'ACC')
+
+#Test Genes
+Genes <- c('ENSG00000081189','ENSG00000086288', 'ENSG00000137845', 'ENSG00000138600', 'ENSG00000173157', 
+           'ENSG00000134463', 'ENSG00000156170', 'ENSG00000120899', 'ENSG00000147065','ENSG00000130203', 
+           'ENSG00000165025','ENSG00000174628', 'ENSG00000265148', 'ENSG00000159640', 'ENSG00000154734', 
+           'ENSG00000136717', 'ENSG00000095970', 'ENSG00000120885', 'ENSG00000064687')
+
+#Ana's genes
+Genes <- c("ENSG00000048392", "ENSG00000051620", "ENSG00000070495", "ENSG00000074800", "ENSG00000077152", "ENSG00000091140", "ENSG00000096060", "ENSG00000100030", "ENSG00000100418", "ENSG00000100605", "ENSG00000105220", "ENSG00000105398", "ENSG00000108424", "ENSG00000109576", "ENSG00000111640", "ENSG00000113657", "ENSG00000117115", "ENSG00000117228", "ENSG00000119125", "ENSG00000121879", "ENSG00000128683", "ENSG00000130540", "ENSG00000136634", "ENSG00000137992", "ENSG00000139112", "ENSG00000140374", "ENSG00000143546", "ENSG00000146701", "ENSG00000146733", "ENSG00000155368", "ENSG00000156709", "ENSG00000162433", "ENSG00000164111", "ENSG00000165025", "ENSG00000166224", "ENSG00000167325", "ENSG00000167720", "ENSG00000168291", "ENSG00000176490", "ENSG00000177511", "ENSG00000186298", "ENSG00000196154", "ENSG00000197448", "ENSG00000197956", "ENSG00000213719")
+
+#Genes <- c('ENSG00000147065','ENSG00000130203')
+#Genes <- c('ENSG00000130203')
+Tissues <- c('CBE',  'DLPFC' , 'FP', 'IFG', 'PHG', 'STG', 'TCX')
+#DE  = 'syn14237651'
+#eQTL_Cer = 'syn16984411'
+#eQTL_TCX = 'syn16984410'
+#eQTL_DLPFC = 'syn16984409'
+#eQTL_EasyYesNo = 'syn12514912
+#AgoraDrugability = 'syn13363443'
+#Proteomics = 'syn18689335'
+#AD Associated Mets Networks: syn11932957
+#AD Meta Network Modual Associations syn11954640
+```
+
+
+```{r Settings, echo =F, warning=F}
+plotdir='/Users/jgockley/Desktop/Projects/AMP-AD_Targets/Candidate_Target_Profiler/Plots/'
+tabledir='Tables/'
+Tissues <- c('CBE', 'DLPFC', 'IFG', 'PHG', 'TCX', 'STG', 'FP')
+
+```

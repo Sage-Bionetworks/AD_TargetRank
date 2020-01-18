@@ -26,4 +26,11 @@ sudo service docker start
 sudo usermod -aG docker <USER ID>
 sudo docker run -v "/home/jgockley/AD_TargetRank:/home/jgockley/AD_TargetRank" -e USER=$(id -u ${USER}) -e PASSWORD=<PASSWORD> -d -p 8787:8787 <DockerImageID>
 
+#Inside the docker image make the followning file
+nano ~/.synapseConfig
+
+#[authentication]
+#username = <Synapse ID>
+#password = <Synapse Password>
+
 ```
