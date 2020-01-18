@@ -1,4 +1,5 @@
 name: configs/TestConfig.yaml
+runname: Test
 parentID: syn21532475
 runID: Test
 tissue:
@@ -9,4 +10,9 @@ tissue:
   - PHG
   - STG
   - TCX
+
+filedir: ~/AD_TargetRank
+
+figures: runs/figures
+tables: runs/tables
 

@@ -1,14 +1,17 @@
 #This script takes a user specified Yaml file and creates a markdown file from it
-#To run: Rscript Run.r <Configuration YAML FILE> <
+#To run: Rscript Run.r <Configuration YAML FILE>
 
 library(yaml)
 args <- commandArgs(trailingOnly=TRUE)
-setwd( "~/AD_TargetRank/")
 
 #READ IN Config
-#config<-'configs/TestConfig.yaml'
+#configuration<-'configs/TestConfig.yaml'
 configuration <- args[1]
 config <- read_yaml(configuration)
+
+setwd( config$filedir )
+system( paste0('mkdir -p runs/', config$runname, '/figures' ) )
+system( paste0('mkdir -p runs/', config$runname, '/tables' ) )
 
 #CREATE the RMD to RUN
 system( paste0( "sed 's/YAML_FILE/", sub("/", "\\\\/",config$name), "/g' ~/AD_TargetRank/code/02-Master.Rmd > ~/AD_TargetRank/code/03-Run.Rmd"))
