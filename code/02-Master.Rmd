@@ -29,14 +29,13 @@ library(yaml)
 ```{r yamlIMPT, eval = T, include=T}
 #Assign your YAML formated config file to a varable
 configuration <- "YAML_FILE"
-config <- read_yaml(configuration)
+config <- read_yaml(file=paste0('./',configuration))
 
 setwd(config$filedir)
 plotdir=paste0( 'runs/', config$runname, '/figures' )
 tabledir=paste0( 'runs/', config$runname, '/tables' )
 
 Tissues <- config$tissue
-
 
 #DE  = 'syn14237651'
 #eQTL_Cer = 'syn16984411'
@@ -48,8 +47,74 @@ Tissues <- config$tissue
 #AD Associated Mets Networks: syn11932957
 #AD Meta Network Modual Associations syn11954640
 ```
-```{r Module1, eval = T, include=T}
 
+Importing genelist `r thisFile` as `r config$genelisttype`
+```{r GeneNames, eval=T, include=T}
+
+GeneData <- function( id, type ){
+  #Retreives gene name info
+  #'@id the gene ids to source a list from
+  #'@type either ENSG or GNAME for type of gen ids
+  
+  org = 'hsa'
+  host = 'grch37.ensembl.org'
+  ensembl <- useMart("ENSEMBL_MART_ENSEMBL", host = host)
+  ds <- listDatasets(ensembl)[, "dataset"]
+  ds <- grep(paste0("^", org), ds, value = TRUE)
+  
+  if (length(ds) == 0){
+    stop(paste("Mart not found for:", org))
+  } else if (length(ds) > 1) {
+    message("Found several marts")
+    sapply(ds, function(d) message(paste(which(ds == d), d, sep = ": ")))
+    n <- readline(paste0("Choose mart (1-", length(ds), ") : "))
+    ds <- ds[as.integer(n)]
+  }
+    
+  if(type == 'ENSG'){
+    id.type = 'ensembl_gene_id'
+    ensembl <- useDataset(ds, mart = ensembl)
+    Genes <- getBM(filters = id.type, attributes = c(id.type, 'hgnc_symbol', 'chromosome_name', 'start_position', 'end_position'), values = id, mart = ensembl)
+  }else{
+    if(type == 'GNAME'){
+      id.type = 'hgnc_symbol'
+      ensembl <- useDataset(ds, mart = ensembl)
+      Genes <- getBM(filters = id.type, attributes = c('ensembl_gene_id', id.type, 'chromosome_name', 'start_position', 'end_position'), values = id, mart = ensembl)
+      ##Cut Decmals
+    }else{
+      #Error Gene names not specififed correctly
+      stop("ERROR: SOURCE=Config.yaml Issue=genelisttype must be ENSG or GNAME")
+    }
+  }
+  return(Genes)
+}
+
+#Load Gene Set:
+Genes <- read.table( paste0(config$filedir, '/genelists/', config$genelistfile ), header=F, sep='\t')
+
+Tab <- GeneData( Genes, config$genelisttype )
+Tab$Coord_hg19 <- paste0("chr", Tab$chromosome_name, ":", Tab$start_position, "-",Tab$end_position)
+Tab$Interval_hg19 <- NA
+for( i in 1:dim(Tab)[1]){
+  if(  Tab$start_position[i] < Tab$ensembl_gene_id[i] ){
+    Tab$Interval_hg19[i] <- paste0("chr", Tab$chromosome_name[i], ":", as.numeric(Tab$start_position[i])-1e6, "-", as.numeric(Tab$end_position[i])+1e6)
+  }else{
+    Tab$Interval_hg19[i] <- paste0("chr", Tab$chromosome_name[i], ":", as.numeric(Tab$start_position[i])+1e6, "-", as.numeric(Tab$end_position[i])-1e6)
+  }
+}
+
+```
+
+
+```{r Module1, eval = T, include=T}
+if( i %in% config$modules ){
+  writeLines('Modeling and ranking genelist ', config$genelistfile ,' by IGAP SNP evidence')
+  
+  source()
+  
+}else{
+  writeLines('Skipping IGAP based Model and Gene-Ranking: User specified module 1 not included in <Config>.yaml ')
+}
 
 ```
 

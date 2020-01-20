@@ -26,29 +26,17 @@ library(gridExtra)
 library(yaml)
 ```
 
-```{r yamlIMPT, eval = F, include=FALSE}
+```{r yamlIMPT, eval = T, include=T}
 #Assign your YAML formated config file to a varable
-YAML_Config <- "configs/TestConfig.yaml"
+configuration <- "configs/TestConfig.yaml"
+config <- read_yaml(configuration)
 
-setwd("~/AD_TargetRank/")
-source("~/AD_TargetRank/utilityFunctions/knitfile2synapseClient.R")
-source("~/AD_TargetRank/utilityFunctions/hook_synapseMdSyntax_plot.R")
-createAndKnitToFolderEntityClient(file = "CMC_ACC_Exp_DataProcessing_V2.Rmd",
-                                          parentId ="syn21478397",
-                                          folderName = 'ACC')
+setwd(config$filedir)
+plotdir=paste0( 'runs/', config$runname, '/figures' )
+tabledir=paste0( 'runs/', config$runname, '/tables' )
 
-#Test Genes
-Genes <- c('ENSG00000081189','ENSG00000086288', 'ENSG00000137845', 'ENSG00000138600', 'ENSG00000173157', 
-           'ENSG00000134463', 'ENSG00000156170', 'ENSG00000120899', 'ENSG00000147065','ENSG00000130203', 
-           'ENSG00000165025','ENSG00000174628', 'ENSG00000265148', 'ENSG00000159640', 'ENSG00000154734', 
-           'ENSG00000136717', 'ENSG00000095970', 'ENSG00000120885', 'ENSG00000064687')
+Tissues <- config$tissue
 
-#Ana's genes
-Genes <- c("ENSG00000048392", "ENSG00000051620", "ENSG00000070495", "ENSG00000074800", "ENSG00000077152", "ENSG00000091140", "ENSG00000096060", "ENSG00000100030", "ENSG00000100418", "ENSG00000100605", "ENSG00000105220", "ENSG00000105398", "ENSG00000108424", "ENSG00000109576", "ENSG00000111640", "ENSG00000113657", "ENSG00000117115", "ENSG00000117228", "ENSG00000119125", "ENSG00000121879", "ENSG00000128683", "ENSG00000130540", "ENSG00000136634", "ENSG00000137992", "ENSG00000139112", "ENSG00000140374", "ENSG00000143546", "ENSG00000146701", "ENSG00000146733", "ENSG00000155368", "ENSG00000156709", "ENSG00000162433", "ENSG00000164111", "ENSG00000165025", "ENSG00000166224", "ENSG00000167325", "ENSG00000167720", "ENSG00000168291", "ENSG00000176490", "ENSG00000177511", "ENSG00000186298", "ENSG00000196154", "ENSG00000197448", "ENSG00000197956", "ENSG00000213719")
-
-#Genes <- c('ENSG00000147065','ENSG00000130203')
-#Genes <- c('ENSG00000130203')
-Tissues <- c('CBE',  'DLPFC' , 'FP', 'IFG', 'PHG', 'STG', 'TCX')
 #DE  = 'syn14237651'
 #eQTL_Cer = 'syn16984411'
 #eQTL_TCX = 'syn16984410'
@@ -60,10 +48,61 @@ Tissues <- c('CBE',  'DLPFC' , 'FP', 'IFG', 'PHG', 'STG', 'TCX')
 #AD Meta Network Modual Associations syn11954640
 ```
 
+```{r Process, eval=T, include=T}
 
-```{r Settings, echo =F, warning=F}
-plotdir='/Users/jgockley/Desktop/Projects/AMP-AD_Targets/Candidate_Target_Profiler/Plots/'
-tabledir='Tables/'
-Tissues <- c('CBE', 'DLPFC', 'IFG', 'PHG', 'TCX', 'STG', 'FP')
+  writeLines('Importing genelist ', config$genelistfile, ' as ', config$Genelisttype)
+
 
 ```
+
+```{r GeneNames, eval=T, include=T}
+GeneData <- function( id ){
+  
+  org = 'hsa'
+  id.type = 'ensembl_gene_id'
+  #host = 'jul2019.archive.ensembl.org'
+  host = 'grch37.ensembl.org'
+  ensembl <- useMart("ENSEMBL_MART_ENSEMBL", host = host)
+  ds <- listDatasets(ensembl)[, "dataset"]
+  ds <- grep(paste0("^", org), ds, value = TRUE)
+  
+  if (length(ds) == 0){
+    stop(paste("Mart not found for:", org))
+  } else if (length(ds) > 1) {
+    message("Found several marts")
+    sapply(ds, function(d) message(paste(which(ds == d), d, sep = ": ")))
+    n <- readline(paste0("Choose mart (1-", length(ds), ") : "))
+    ds <- ds[as.integer(n)]
+  }
+    
+  ensembl <- useDataset(ds, mart = ensembl)
+  
+  Genes <- getBM(filters = id.type, attributes = c(id.type, 'hgnc_symbol', 'chromosome_name', 'start_position', 'end_position'), values = id, mart = ensembl)
+  return(Genes)
+}
+
+Tab <- GeneData( Genes )
+Tab$Coord_hg19 <- paste0("chr", Tab$chromosome_name, ":", Tab$start_position, "-",Tab$end_position)
+Tab$Interval_hg19 <- NA
+for( i in 1:dim(Tab)[1]){
+  if(  Tab$start_position[i] < Tab$ensembl_gene_id[i] ){
+    Tab$Interval_hg19[i] <- paste0("chr", Tab$chromosome_name[i], ":", as.numeric(Tab$start_position[i])-1e6, "-", as.numeric(Tab$end_position[i])+1e6)
+  }else{
+    Tab$Interval_hg19[i] <- paste0("chr", Tab$chromosome_name[i], ":", as.numeric(Tab$start_position[i])+1e6, "-", as.numeric(Tab$end_position[i])-1e6)
+  }
+}
+
+```
+```{r Module1, eval = T, include=T}
+if( i %in% config$modules ){
+  writeLines('Modeling and ranking genelist ', config$genelistfile ,' by IGAP SNP evidence')
+  
+  source()
+  
+}else{
+  writeLines('Skipping IGAP based Model and Gene-Ranking: User specified module 1 not included in <Config>.yaml ')
+}
+
+```
+
+
