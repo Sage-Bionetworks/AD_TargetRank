@@ -16,9 +16,9 @@ Input to the pipeline is in YAML format. This format will specify the target lis
 
 The compiled output will be a Wiki on the target synapse folder. This folder will also contain the output plots in induvidual files from the script. These will be stored in ```figures/``` and that entire folder is also specified in ```.gitignore``` to prevent this repo from growing too large.
 
-## Runing the pipeline:
+## Setting up the pipeline run environment:
 
-All dependencies will be contained within the docker image and can be run in an interactive RStudio session from an AWS instance utalizing the following commands:
+All dependencies will be contained within the docker image (idealy...) and can be run in an interactive RStudio session from an AWS instance utalizing the following commands:
 ```
 sudo yum update -y
 sudo amazon-linux-extras install docker
@@ -34,3 +34,10 @@ nano ~/.synapseConfig
 #password = <Synapse Password>
 
 ```
+
+## Running the pipeline:
+
+Sourcing the Inlitiazer with your yaml configuration file copies the path into the RMarkdown file and creates the Run.Rmd file. It then sources that file and knits the markdown file into the wiki of the synapse folder specified in the configuration script and copies the figures and tables into sub folders within the destination synapse folder specified in the configuration yaml file.
+
+## Configuration file fields:
+
