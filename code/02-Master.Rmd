@@ -13,6 +13,7 @@ output:
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = F)
+opts_knit$set(root.dir = '../')
 library(readr)
 library(biomaRt)
 library(knitr)
@@ -24,6 +25,7 @@ library(ggplot2)
 library(ggrepel)
 library(gridExtra)
 library(yaml)
+#webshot::install_phantomjs()
 ```
 
 ```{r yamlIMPT, eval = T, include=T}
@@ -95,6 +97,7 @@ Genes <- read.table( paste0(config$filedir, '/genelists/', config$genelistfile )
 Tab <- GeneData( Genes, config$genelisttype )
 Tab$Coord_hg19 <- paste0("chr", Tab$chromosome_name, ":", Tab$start_position, "-",Tab$end_position)
 Tab$Interval_hg19 <- NA
+
 for( i in 1:dim(Tab)[1]){
   if(  Tab$start_position[i] < Tab$ensembl_gene_id[i] ){
     Tab$Interval_hg19[i] <- paste0("chr", Tab$chromosome_name[i], ":", as.numeric(Tab$start_position[i])-1e6, "-", as.numeric(Tab$end_position[i])+1e6)
@@ -102,15 +105,14 @@ for( i in 1:dim(Tab)[1]){
     Tab$Interval_hg19[i] <- paste0("chr", Tab$chromosome_name[i], ":", as.numeric(Tab$start_position[i])+1e6, "-", as.numeric(Tab$end_position[i])-1e6)
   }
 }
-
 ```
 
 
 ```{r Module1, eval = T, include=T}
-if( i %in% config$modules ){
+if( 1 %in% config$modules ){
   writeLines('Modeling and ranking genelist ', config$genelistfile ,' by IGAP SNP evidence')
   
-  source()
+  source('code/modules/01-IGAP_module.R')
   
 }else{
   writeLines('Skipping IGAP based Model and Gene-Ranking: User specified module 1 not included in <Config>.yaml ')
@@ -118,4 +120,14 @@ if( i %in% config$modules ){
 
 ```
 
+```{r Module2, eval = T, include=T}
+if( 2 %in% config$modules ){
+  writeLines('Modeling and ranking genelist ', config$genelistfile ,' by Differential Expression evidence')
+  
+  source('modules/02-DiffExp_module.R')
+  
+}else{
+  writeLines('Skipping Differential Expression based Model and Gene-Ranking: User specified module 2 not included in <Config>.yaml ')
+}
 
+```

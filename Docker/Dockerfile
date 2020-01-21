@@ -5,6 +5,17 @@ RUN apt-get update\
 && apt-get install -y libpython3-dev\
 && apt-get install -y dpkg-dev zlib1g-dev libssl-dev libffi-dev\
 && apt-get install -y curl nano less libcurl4-openssl-dev gawk\
+&& apt-get install -y build-essential chrpath libssl-dev libxft-dev\
+&& apt-get install -y libfreetype6 libfreetype6-dev\
+&& apt-get install -y libfontconfig1 libfontconfig1-dev\
+&& export PHANTOM_JS="phantomjs-1.9.8-linux-x86_64"\
+&& wget https://bitbucket.org/ariya/phantomjs/downloads/$PHANTOM_JS.tar.bz2\
+&& tar xvjf $PHANTOM_JS.tar.bz2\
+&& mv $PHANTOM_JS /usr/local/share\
+&& ln -sf /usr/local/share/$PHANTOM_JS/bin/phantomjs /usr/local/bin\
+&& apt-get install -y php php-common gcc\
+&& apt-get install -y imagemagick\
+&& apt-get install -y php-imagick\
 && apt-get install -y git\
 && apt-get install -y tabix\
 && apt-get install -y bcftools\
@@ -55,6 +66,7 @@ RUN apt-get update\
 && R -e "install.packages('ggrepel', repos = 'http://cran.us.r-project.org')"\
 && R -e "install.packages('kableExtra', repos = 'http://cran.us.r-project.org)"\
 && R -e "BiocManager::install('limma')"\
+&& R -e "install.packages('vbsr', repos='http://cran.us.r-project.org')"\
 && R -e "BiocManager::install('edgeR')"\
 && R -e "BiocManager::install('ComplexHeatmap')"
 
