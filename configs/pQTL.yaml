@@ -1,7 +1,7 @@
-name: configs/TestConfig.yaml
-runname: Test
+name: configs/pQTL.yaml
+runname: pQTL
 parentID: syn21532475
-runID: Test
+runID: pQTL
 tissue:
   - CBE
   - DLPFC
@@ -16,11 +16,9 @@ filedir: ~/AD_TargetRank
 figures: runs/figures
 tables: runs/tables
 
-genelistfile: ENSGtest.txt
-genelisttype: ENSG
+genelistfile: pQTL.txt
+genelisttype: GNAME
 
 
 modules:
   - 7
-
-  

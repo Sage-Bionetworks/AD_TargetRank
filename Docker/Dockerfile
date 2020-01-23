@@ -38,9 +38,10 @@ RUN apt-get update\
 #&& unzip plink2_linux_x86_64_20191015.zip\
 #&& mv plink2 TWAS/bin \
 && R -e "install.packages('BiocManager')"\
-&& R -e "BiocManager::install('biomaRt')"\
-&& R -e "devtools::install_github('th1vairam/CovariateAnalysis@dev')"\
-&& R -e "devtools::install_github('brian-bot/githubr')"\
+&& R -e "BiocManager::install('biomaRt')"\ 
+&& R -e "devtools::install_github('th1vairam/CovariateAnalysis@dev')"\ 
+&& R -e "devtools::install_github('brian-bot/githubr')"\ 
+&& R -e "devtools::install_github('blogsdon/spike/spike')"\ 
 #&& R -e "install.packages('synapser', repos = c('http://ran.synapse.org', 'http://cran.fhcrc.org'))"\
 #&& R -e "devtools::install_github('Sage-Bionetworks/knit2synapse')"\
 #&& R -e "install.packages('PythonEmbedInR', repos=c('http://cran.fhcrc.org', 'http://ran.synapse.org'))"\
@@ -49,6 +50,7 @@ RUN apt-get update\
 && R -e "install.packages('dplyr')"\
 && R -e "install.packages('foreach')"\
 && R -e "install.packages('ggplot2')"\
+&& R -e "install.packages('bcv')"\
 && R -e "install.packages('knitr')"\
 && R -e "install.packages('plyr')"\
 && R -e "install.packages('rmarkdown')"\
@@ -56,6 +58,7 @@ RUN apt-get update\
 && R -e "install.packages('plotrix', repos = 'http://cran.us.r-project.org')"\
 && R -e "install.packages('reticulate', repos = 'http://cran.us.r-project.org')"\
 && R -e "install.packages('optmatch', repos = 'http://cran.us.r-project.org')" \
+&& R -e "install.packages('pheatmap', repos = 'http://cran.us.r-project.org')"\
 && R -e "BiocManager::install('scater')" \
 && R -e "install.packages('tidyr')"\
 && R -e "install.packages('glmnet', repos = 'http://cran.us.r-project.org')"\
@@ -63,6 +66,7 @@ RUN apt-get update\
 && R -e "BiocManager::install('WGCNA')"\
 && R -e "BiocManager::install('cqn')"\
 && R -e "devtools::install_github('rlbarter/superheat')"\
+&& R -e "devtools::install_github('blogsdon/spike/spike')"\
 && R -e "install.packages('ggrepel', repos = 'http://cran.us.r-project.org')"\
 && R -e "install.packages('kableExtra', repos = 'http://cran.us.r-project.org)"\
 && R -e "BiocManager::install('limma')"\

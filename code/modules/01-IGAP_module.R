@@ -38,7 +38,8 @@ for( i in 1:dim(Tab)[1]){
                        as.numeric(as.character(IGAP1$Chromosome)) == as.numeric(as.character(Tab$chromosome_name)[i])  , ] 
     if( dim(TempV1)[1]>0 ){
       TempV1$GeneName <- Tab$hgnc_symbol[i]
-      #TotalIGAP <- as.data.frame(rbind(TotalIGAP,TempV1))
+      #####
+      TotalIGAP <- as.data.frame(rbind(TotalIGAP,TempV1))
     }else{}
     
     if( median(c(1:length(TempV1$Pvalue))) == floor(median(c(1:length(TempV1$Pvalue)))) & median(c(1:length(TempV1$Pvalue))) == ceiling(median(c(1:length(TempV1$Pvalue)))) ) {
@@ -78,7 +79,7 @@ for( i in 1:dim(Tab)[1]){
     BestScoreIGAP <- as.data.frame(rbind(BestScoreIGAP,Temp[ min(Temp$Pvalue) == as.numeric(Temp$Pvalue), ]))
   }
 }
-colnames(Tab) <- c("ENSG", "GeneName", "Start", "End", "Chr", "Coordhg19", "Intervalhg19", "LowestPValCombined", "TotalSNPsCombined", "LowestPValPhaseI", "TotalSNPsPhaseI" )
+colnames(Tab) <- c("ENSG", "GeneName", "Chr", "Start", "End", "Coordhg19", "Intervalhg19", "LowestPValCombined", "TotalSNPsCombined", "LowestPValPhaseI", "TotalSNPsPhaseI" )
 row.names(Tab) <- Tab$ENSG
 
 TotalIGAP$LogP <- -log(TotalIGAP$Pvalue)
@@ -99,6 +100,9 @@ ggplot(TotalIGAP, aes(x=GeneName, y=LogP)) +
   theme(axis.text.x = element_text(angle = 45) ) + ylab('-Log(P-Value)') 
 dev.off()
 
+#Replace Infinite values with max + one
+FOO[ FOO$Pvalue == Inf,]$Pvalue <- max(FOO$Pvalue[FOO$Pvalue!=Inf]+1)
+
 IGAP$Rank<-rank(-IGAP$Pvalue)
 FOO<-IGAP
 FOO$Pvalue <- -log(FOO$Pvalue)
@@ -118,18 +122,20 @@ ggplot( FOO, aes(x=Pvalue, y=RankModel)) +
 dev.off()
 
 #Fit Logistic Model:
+FOO$Rank<-rank(FOO$Pvalue)
+FOO$RankModel <- (FOO$Rank/dim(FOO)[1])
 mylogit <- glm(RankModel ~ Pvalue, data = FOO, family = "binomial")
-
+#FOO$RankModel
 
 LogisticScorer <- function( X ){
-  y <- 1/(1+exp( -( mylogit$coefficients[1]+mylogit$coefficients[2]*X) ))
+  y <- 1/(1+exp( -( as.numeric(mylogit$coefficients[1]) + as.numeric(mylogit$coefficients[2]) * X) ))
   return(y)
 }
 
-LogisticScorer <- function( X ){
-  y <- 1/(1+exp( -( -3.305501+0.420491*X) ))
-  return(y)
-}
+#LogisticScorer <- function( X ){
+#  y <- 1/(1+exp( -( -3.305501+0.420491*X) ))
+#  return(y)
+#}
 
 FOO$Weights <- LogisticScorer(FOO$Pvalue)
 

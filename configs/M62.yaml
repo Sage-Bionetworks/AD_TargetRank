@@ -1,7 +1,7 @@
-name: configs/TestConfig.yaml
-runname: Test
+name: configs/M62.yaml
+runname: M62
 parentID: syn21532475
-runID: Test
+runID: M62
 tissue:
   - CBE
   - DLPFC
@@ -16,11 +16,9 @@ filedir: ~/AD_TargetRank
 figures: runs/figures
 tables: runs/tables
 
-genelistfile: ENSGtest.txt
-genelisttype: ENSG
+genelistfile: ModuleM62.txt
+genelisttype: GNAME
 
 
 modules:
   - 7
-
-  

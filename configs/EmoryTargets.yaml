@@ -1,7 +1,7 @@
-name: configs/TestConfig.yaml
-runname: Test
+name: configs/EmoryTargets.yaml
+runname: EmoryTargets
 parentID: syn21532475
-runID: Test
+runID: EmoryTargets
 tissue:
   - CBE
   - DLPFC
@@ -16,11 +16,9 @@ filedir: ~/AD_TargetRank
 figures: runs/figures
 tables: runs/tables
 
-genelistfile: ENSGtest.txt
-genelisttype: ENSG
+genelistfile: EmoryTargets.txt
+genelisttype: GNAME
 
 
 modules:
   - 7
-
-  

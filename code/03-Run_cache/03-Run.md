@@ -9,7 +9,23 @@ header-includes:
 output:
   html_document: default
   pdf_document: default
+editor_options: 
+  chunk_output_type: console
 ---
+
+
+
+
+```
+## [1] "/home/jgockley/AD_TargetRank"
+```
+
+Importing genelist ENSGtest.txt as ENSG
+
+
+
+
+
 
 
 

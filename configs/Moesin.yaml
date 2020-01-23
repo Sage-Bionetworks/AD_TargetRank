@@ -1,7 +1,7 @@
-name: configs/TestConfig.yaml
-runname: Test
+name: configs/Moesin.yaml
+runname: Moesin
 parentID: syn21532475
-runID: Test
+runID: Moesin
 tissue:
   - CBE
   - DLPFC
@@ -16,11 +16,9 @@ filedir: ~/AD_TargetRank
 figures: runs/figures
 tables: runs/tables
 
-genelistfile: ENSGtest.txt
-genelisttype: ENSG
+genelistfile: Moesin.txt
+genelisttype: GNAME
 
 
 modules:
   - 7
-
-  

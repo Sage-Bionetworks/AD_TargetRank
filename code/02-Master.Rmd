@@ -9,11 +9,12 @@ header-includes:
 output:
   html_document: default
   pdf_document: default
+editor_options: 
+  chunk_output_type: console
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = F)
-opts_knit$set(root.dir = '../')
 library(readr)
 library(biomaRt)
 library(knitr)
@@ -25,10 +26,13 @@ library(ggplot2)
 library(ggrepel)
 library(gridExtra)
 library(yaml)
+knitr::opts_knit$set(root.dir = config$filedir )
+print(getwd())
 #webshot::install_phantomjs()
 ```
 
 ```{r yamlIMPT, eval = T, include=T}
+print(getwd())
 #Assign your YAML formated config file to a varable
 configuration <- "YAML_FILE"
 config <- read_yaml(file=paste0('./',configuration))
@@ -38,6 +42,19 @@ plotdir=paste0( 'runs/', config$runname, '/figures' )
 tabledir=paste0( 'runs/', config$runname, '/tables' )
 
 Tissues <- config$tissue
+
+#Create Synapse Run Folder and retrieve parentID
+CODE <- syn_temp$store(synapseclient$Folder(name = config$runID, parentId = config$parentID))
+
+foo <- syn_temp$getChildren('syn21532475')
+Temp <- reticulate::iterate(foo, simplify = F)
+for( i in 1:length(Temp) ){
+  if( Temp[[i]]$name == config$runID ){
+    RunParent <- Temp[[i]]$id
+  }else{
+  }
+}
+
 
 #DE  = 'syn14237651'
 #eQTL_Cer = 'syn16984411'
@@ -50,7 +67,7 @@ Tissues <- config$tissue
 #AD Meta Network Modual Associations syn11954640
 ```
 
-Importing genelist `r thisFile` as `r config$genelisttype`
+Importing genelist `r config$genelistfile` as `r config$genelisttype`
 ```{r GeneNames, eval=T, include=T}
 
 GeneData <- function( id, type ){
@@ -59,7 +76,7 @@ GeneData <- function( id, type ){
   #'@type either ENSG or GNAME for type of gen ids
   
   org = 'hsa'
-  host = 'grch37.ensembl.org'
+  host = 'grch38.ensembl.org'
   ensembl <- useMart("ENSEMBL_MART_ENSEMBL", host = host)
   ds <- listDatasets(ensembl)[, "dataset"]
   ds <- grep(paste0("^", org), ds, value = TRUE)
@@ -95,6 +112,8 @@ GeneData <- function( id, type ){
 Genes <- read.table( paste0(config$filedir, '/genelists/', config$genelistfile ), header=F, sep='\t')
 
 Tab <- GeneData( Genes, config$genelisttype )
+#Trans used as raw for module 7
+Trans <- Tab
 Tab$Coord_hg19 <- paste0("chr", Tab$chromosome_name, ":", Tab$start_position, "-",Tab$end_position)
 Tab$Interval_hg19 <- NA
 
@@ -107,7 +126,6 @@ for( i in 1:dim(Tab)[1]){
 }
 ```
 
-
 ```{r Module1, eval = T, include=T}
 if( 1 %in% config$modules ){
   writeLines('Modeling and ranking genelist ', config$genelistfile ,' by IGAP SNP evidence')
@@ -115,7 +133,7 @@ if( 1 %in% config$modules ){
   source('code/modules/01-IGAP_module.R')
   
 }else{
-  writeLines('Skipping IGAP based Model and Gene-Ranking: User specified module 1 not included in <Config>.yaml ')
+  writeLines( paste0('Skipping IGAP based Model and Gene-Ranking: User specified module 1 not included in ', config$name) )
 }
 
 ```
@@ -124,10 +142,71 @@ if( 1 %in% config$modules ){
 if( 2 %in% config$modules ){
   writeLines('Modeling and ranking genelist ', config$genelistfile ,' by Differential Expression evidence')
   
-  source('modules/02-DiffExp_module.R')
+  source('code/modules/02-DiffExp_module.R')
   
 }else{
-  writeLines('Skipping Differential Expression based Model and Gene-Ranking: User specified module 2 not included in <Config>.yaml ')
+  writeLines( paste0('Skipping Differential Expression based Model and Gene-Ranking: User specified module 2 not included in ', config$name) )
+}
+
+```
+
+```{r Module3, eval = T, include=T}
+if( 3 %in% config$modules ){
+  writeLines('Modeling and ranking genelist ', config$genelistfile ,' by Differential Proteomic Expression evidence')
+  
+  source('code/modules/03-DiffProt_module.R')
+  
+}else{
+  writeLines( paste0('Skipping Differential Proteomic Expression based Model and Gene-Ranking: User specified module 3 not included in ', config$name) )
+}
+
+```
+
+```{r Module4, eval = T, include=T}
+if( 4 %in% config$modules ){
+  writeLines('Modeling and ranking genelist ', config$genelistfile ,' by eQTL evidence')
+  
+  source('code/modules/04-eQTL_module.R')
+  
+}else{
+  writeLines( paste0('Skipping eQTL based Model and Gene-Ranking: User specified module 4 not included in ', config$name) )
+}
+
+```
+
+```{r Module5, eval = T, include=T}
+if( 5 %in% config$modules ){
+  writeLines('Modeling and ranking genelist ', config$genelistfile ,' by Coexpression Module evidence')
+  
+  source('code/modules/05-CoExp_module.R')
+  
+}else{
+  writeLines( paste0('Skipping Coexpression Module based Model and Gene-Clustering: User specified module 5 not included in ', config$name) )
+}
+
+```
+
+```{r Module6, eval = T, include=T}
+if( 6 %in% config$modules ){
+  writeLines('Modeling and ranking genelist ', config$genelistfile ,' by Module Cell-Type Enrichments evidence')
+  
+  source('code/modules/06-CellType_module.R')
+  
+}else{
+  writeLines( paste0('Skipping Coexpression Module based Model and Gene-Clustering: User specified module 6 not included in ', config$name) )
+}
+
+```
+
+```{r Module7, eval = T, include=T}
+setwd( config$filedir )
+if( 7 %in% config$modules ){
+  writeLines('Modeling and ranking genelist ', config$genelistfile ,' by Differential Expression evidence')
+  
+  source('code/modules/07-Coexpression.R')
+  
+}else{
+  writeLines( paste0('Skipping Partial Coexpression Analysis: User specified module 7 not included in ', config$name) )
 }
 
 ```
