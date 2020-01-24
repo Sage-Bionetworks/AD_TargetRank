@@ -16,7 +16,7 @@ filedir: ~/AD_TargetRank
 figures: runs/figures
 tables: runs/tables
 
-genelistfile: ModuleM62.txt
+genelistfile: genelists/ModuleM62.txt
 genelisttype: GNAME
 
 

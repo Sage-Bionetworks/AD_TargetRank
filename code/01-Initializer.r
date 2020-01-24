@@ -1,5 +1,11 @@
 #This script takes a user specified Yaml file and creates a markdown file from it
-#To run: Rscript Run.r <Configuration YAML FILE>
+#To run: Rscript code/01-Initializer.r <Configuration YAML FILE>
+#eg. Rscript code/01-Initializer.r configs/TestConfig.yaml
+#eg. Rscript code/01-Initializer.r configs/M62.yaml
+#eg. Rscript code/01-Initializer.r configs/pQTL.yaml
+#eg. Rscript code/01-Initializer.r configs/Retromer.yaml
+#eg. Rscript code/01-Initializer.r configs/Moesin.yaml
+#eg. Rscript code/01-Initializer.r configs/EmoryTargets.yaml
 
 library(yaml)
 args <- commandArgs(trailingOnly=TRUE)

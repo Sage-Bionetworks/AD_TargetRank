@@ -1,13 +1,12 @@
 ##Coexpression Analysis module:
 #install.packages("~/Desktop/Programs/spike/spike/", repos = NULL, type = "source")
 
-#config$tissue <- c('CBE', 'DLPFC', 'FP', 'IFG', 'PHG', 'STG', 'TCX')
-
-# Github link
-thisRepo <- githubr::getRepo(repository = "jgockley62/AD_TargetRank", ref="branch", refName='master')
-
+# Load Libraries and se working directory 
+library(pheatmap)
 setwd( config$filedir )
 
+# Set Github Provenance links
+thisRepo <- githubr::getRepo(repository = "jgockley62/AD_TargetRank", ref="branch", refName='master')
 GL_File  <- githubr::getPermlink(repository = thisRepo, repositoryPath=config$genelistfile)
 CF_File  <- githubr::getPermlink(repository = thisRepo, repositoryPath=config$name)
 I_File  <- githubr::getPermlink(repository = thisRepo, repositoryPath='code/01-Initializer.r')
@@ -19,9 +18,11 @@ CODE <- syn_temp$store(synapseclient$Folder(name = 'figures', parentId = RunPare
 ExpressionDS <- c('syn21291908','syn21292041','syn21285564','syn21285564','syn21285564','syn21285564','syn21291908')
 names( ExpressionDS ) <- c('CBE', 'DLPFC', 'FP', 'IFG', 'PHG', 'STG', 'TCX')
 
+#Study ID Translator
 Study <- c( 'RosMap', 'Mayo', 'Mayo', 'MSBB', 'MSBB', 'MSBB', 'MSBB')
 names(Study) <- c('DLPFC', 'TCX', 'CBE', 'FP', 'IFG', 'PHG', 'STG')
 
+#Useable Chrs for genelist ENSG  translations and wiki analysis preamble
 row.names(Trans) <- Trans$ensembl_gene_id
 Trans <- Trans[ Trans$chromosome_name %in% c(1:22,"X","Y"), ]
 
@@ -32,14 +33,13 @@ writeLines(paste0('For each tissue specified in ',
                   " is given. This is measured as a percentage of 1000 pemutations in which the gene was a significant predictor of expression of its comparison gene by a linear model."
                   )
            )
-#List of Genes Not Expressed In Tissue
-#dev.off()
+# Make objects for list of Genes Not Expressed In Tissue and dataframes to plot
 Missing <- list()
 Plots <- list()
 
 for( Tissue in config$tissue ){
   
-  # Set annotations
+  # Set annotations for synapse objects ( figures and tables )
   all.annotations = list(
     dataType = 'Coexpression',
     dataSubType = 'pheatmap PDF',
@@ -60,7 +60,7 @@ for( Tissue in config$tissue ){
   activityName = paste0( Tissue, 'Coexpression heatmap')
   activityDescription = paste0( Tissue, 'Coexpression heatmap for genelist: ', config$genelistfile);
   
-  #Load expression
+  #Load expression for tissue
   exp <- read.table(syn_temp$get(as.character(ExpressionDS[Tissue]))$path, header =T, sep ='\t', row.names=1)
   colnames( exp ) <- gsub( "X", "", colnames( exp ) )
   Syns_Used <- c(Syns_Used, as.character(ExpressionDS[Tissue] ) )
@@ -84,8 +84,8 @@ for( Tissue in config$tissue ){
     }
   }
   
+  #Impute svalues for given gene-patient NA values
   foo <- bcv::impute.svd( t(exp) )
-  
   Exp <- foo$x
   row.names(Exp) <- row.names(t(exp)) 
   colnames(Exp) <- colnames(t(exp)) 
@@ -100,49 +100,89 @@ for( Tissue in config$tissue ){
                                   paste(c(Trans[ (row.names(Trans) %in% colnames(x) ) == F, ]$hgnc_symbol), collapse = ', ')
                                  )
   }
-  
+  #Build output matrix for partial correlation
   if(length(Missing))
   Final <- matrix( NA, length(colnames(x)), length(colnames(x)) )
   row.names(Final) <- colnames(x)
   colnames(Final) <- colnames(x)
   
+  #Run Partial correlations for each gene
   for( i in colnames(x) ){
     OBS <- i
     y <- as.matrix(x[,OBS]) 
     colnames(y) <- i
     X <- x[,(colnames(x) %in% OBS) == F ]
-    att <- spike::vbsrBootstrap( y=y,x=X,nsamp=100,cores=4)
+    att <- spike::vbsrBootstrap( y=y,x=X,nsamp=1000,cores=4)
     
     eval(parse(text = paste0("Final[ i,] <- c( att[ (names(att) %in% 'intercept')==F ], ", i, " = 1)[colnames(Final)]") ))
   }
+  #Replace ENSGs with gene names for plotting
   row.names(Final) <- Trans[ row.names(Final), ]$hgnc_symbol
   colnames(Final) <- Trans[ colnames(Final), ]$hgnc_symbol
   
-  #Plots[[ Tissue ]] <- pheatmap::pheatmap(Final, main=Tissue)
-  Plots[[ Tissue ]] <- list(Final, main=Tissue)
-  #for( Tissue in config$tissue ){
-  do.call( "pheatmap", Plots[[ Tissue ]])
-  writeLines(Missing[[ Tissue ]])
-  #}
+  #Write Plot info to list, plot to file, and plot to wiki
+  Plots[[ Tissue ]] <- list(ParCor = Final, main=Tissue)
+}
+
+for( Tissue in config$tissue ){
+  eval( parse( text = paste0( 'pheatmap(Plots$',
+                              Tissue,
+                              '$ParCor, main=Plots$',
+                              Tissue,
+                              '$main)' 
+                         )))
+} 
+for( Tissue in config$tissue ){
+  #pheatmap(Final, main=paste0(Tissue))
+  writeLines(paste0(Missing[[ Tissue ]]))
   
-  
+  #dev.off()
   #plot.new()
   pdf( file = paste0(plotdir,'/', Tissue,'_Coexpression.pdf') )
-    pheatmap::pheatmap(Final, main=Tissue)
+    #pheatmap(Final, main=Tissue)
+    eval( parse( text = paste0( 'pheatmap(Plots$',
+                              Tissue,
+                              '$ParCor, main=Plots$',
+                              Tissue,
+                              '$main)'  
+                            )))
+  Sys.sleep(2)
   dev.off()
-  #dev.off()
+}
+dev.off()
+#Push Plots to synapse
+for( Tissue in config$tissue ){
+  
+  # Set annotations for synapse objects ( figures and tables )
+  all.annotations = list(
+    dataType = 'Coexpression',
+    dataSubType = 'pheatmap PDF',
+    summaryLevel = 'gene',
+    assay	 = 'RNAseq',
+    tissueTypeAbrv	= Tissue, 
+    study = Study[Tissue], 
+    organism = 'HomoSapiens',
+    consortium	= 'AMPAD',
+    normalizationStatus	= TRUE,
+    normalizationType	= 'CQN',
+    rnaquantification = 'RSEM',
+    genomeAssemblyID = 'GRCh38'
+  )
+  
+  #Syns_Used <- NULL
+  #Tissue <- 'STG'
+  activityName = paste0( Tissue, 'Coexpression heatmap')
+  activityDescription = paste0( Tissue, 'Coexpression heatmap for genelist: ', config$genelistfile);
   
   #Push To Synapse:
-  # Store SMR
   ENRICH_OBJ <-  syn_temp$store( synapseclient$File( path=paste0(plotdir,'/', Tissue,'_Coexpression.pdf'), 
-                                  name = paste0(Tissue,' Coexpression.pdf'), 
-                                  parentId=CODE$properties$id ), 
-                                  used = Syns_Used,
-                                  activityName = activityName, 
-                                  executed = list(GL_File, CF_File, I_File, M_File),
-                                  activityDescription = activityDescription)
-  
+                               name = paste0(Tissue,' Coexpression.pdf'), 
+                               parentId=CODE$properties$id ), 
+                               used = Syns_Used,
+                               activityName = activityName, 
+                               executed = list(GL_File, CF_File, I_File, M_File),
+                               activityDescription = activityDescription)
+
   all.annotations$dataSubType = 'pheatmap PDF'
   syn_temp$setAnnotations(ENRICH_OBJ, annotations = all.annotations)
 }
-

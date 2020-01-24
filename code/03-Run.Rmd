@@ -34,7 +34,7 @@ print(getwd())
 ```{r yamlIMPT, eval = T, include=T}
 print(getwd())
 #Assign your YAML formated config file to a varable
-configuration <- "configs/TestConfig.yaml"
+configuration <- "configs/M62.yaml"
 config <- read_yaml(file=paste0('./',configuration))
 
 setwd(config$filedir)
@@ -76,8 +76,10 @@ GeneData <- function( id, type ){
   #'@type either ENSG or GNAME for type of gen ids
   
   org = 'hsa'
-  host = 'grch38.ensembl.org'
-  ensembl <- useMart("ENSEMBL_MART_ENSEMBL", host = host)
+  #host = 'grch38.ensembl.org'
+  #"ensembl",dataset="hsapiens_gene_ensembl")
+  #ensembl <- useMart("ENSEMBL_MART_ENSEMBL", host = host)
+  ensembl <- useMart("ensembl",dataset="hsapiens_gene_ensembl")
   ds <- listDatasets(ensembl)[, "dataset"]
   ds <- grep(paste0("^", org), ds, value = TRUE)
   
@@ -109,7 +111,7 @@ GeneData <- function( id, type ){
 }
 
 #Load Gene Set:
-Genes <- read.table( paste0(config$filedir, '/genelists/', config$genelistfile ), header=F, sep='\t')
+Genes <- read.table( config$genelistfile , header=F, sep='\t')
 
 Tab <- GeneData( Genes, config$genelisttype )
 #Trans used as raw for module 7
@@ -128,7 +130,7 @@ for( i in 1:dim(Tab)[1]){
 
 ```{r Module1, eval = T, include=T}
 if( 1 %in% config$modules ){
-  writeLines('Modeling and ranking genelist ', config$genelistfile ,' by IGAP SNP evidence')
+  writeLines(paste0('Modeling and ranking genelist ', config$genelistfile ,' by IGAP SNP evidence')) 
   
   source('code/modules/01-IGAP_module.R')
   
@@ -140,7 +142,7 @@ if( 1 %in% config$modules ){
 
 ```{r Module2, eval = T, include=T}
 if( 2 %in% config$modules ){
-  writeLines('Modeling and ranking genelist ', config$genelistfile ,' by Differential Expression evidence')
+  writeLines(paste0( 'Modeling and ranking genelist ', config$genelistfile ,' by Differential Expression evidence'))
   
   source('code/modules/02-DiffExp_module.R')
   
@@ -152,7 +154,7 @@ if( 2 %in% config$modules ){
 
 ```{r Module3, eval = T, include=T}
 if( 3 %in% config$modules ){
-  writeLines('Modeling and ranking genelist ', config$genelistfile ,' by Differential Proteomic Expression evidence')
+  writeLines(paste0('Modeling and ranking genelist ', config$genelistfile ,' by Differential Proteomic Expression evidence'))
   
   source('code/modules/03-DiffProt_module.R')
   
@@ -164,7 +166,7 @@ if( 3 %in% config$modules ){
 
 ```{r Module4, eval = T, include=T}
 if( 4 %in% config$modules ){
-  writeLines('Modeling and ranking genelist ', config$genelistfile ,' by eQTL evidence')
+  writeLines(paste0( 'Modeling and ranking genelist ', config$genelistfile ,' by eQTL evidence') )
   
   source('code/modules/04-eQTL_module.R')
   
@@ -176,7 +178,7 @@ if( 4 %in% config$modules ){
 
 ```{r Module5, eval = T, include=T}
 if( 5 %in% config$modules ){
-  writeLines('Modeling and ranking genelist ', config$genelistfile ,' by Coexpression Module evidence')
+  writeLines(paste0( 'Modeling and ranking genelist ', config$genelistfile ,' by Coexpression Module evidence') )
   
   source('code/modules/05-CoExp_module.R')
   
@@ -188,7 +190,7 @@ if( 5 %in% config$modules ){
 
 ```{r Module6, eval = T, include=T}
 if( 6 %in% config$modules ){
-  writeLines('Modeling and ranking genelist ', config$genelistfile ,' by Module Cell-Type Enrichments evidence')
+  writeLines(paste0( 'Modeling and ranking genelist ', config$genelistfile ,' by Module Cell-Type Enrichments evidence'))
   
   source('code/modules/06-CellType_module.R')
   
@@ -201,7 +203,7 @@ if( 6 %in% config$modules ){
 ```{r Module7, eval = T, include=T}
 setwd( config$filedir )
 if( 7 %in% config$modules ){
-  writeLines('Modeling and ranking genelist ', config$genelistfile ,' by Differential Expression evidence')
+  writeLines(paste0('Modeling and ranking genelist ', config$genelistfile ,' by Differential Expression evidence'))
   
   source('code/modules/07-Coexpression.R')
   

@@ -16,7 +16,7 @@ filedir: ~/AD_TargetRank
 figures: runs/figures
 tables: runs/tables
 
-genelistfile: pQTL.txt
+genelistfile: genelists/pQTL.txt
 genelisttype: GNAME
 
 
