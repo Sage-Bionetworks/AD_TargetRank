@@ -1,6 +1,6 @@
 ##Coexpression Analysis module:
 #install.packages("~/Desktop/Programs/spike/spike/", repos = NULL, type = "source")
-
+source("~/AD_TargetRank/utilityFunctions/Parallel_vbsrBootstrap.R")
 # Load Libraries and se working directory 
 library(pheatmap)
 library(parallel)
@@ -25,6 +25,8 @@ names( ExpressionDS ) <- c('CBE', 'DLPFC', 'FP', 'IFG', 'PHG', 'STG', 'TCX')
 Study <- c( 'RosMap', 'Mayo', 'Mayo', 'MSBB', 'MSBB', 'MSBB', 'MSBB')
 names(Study) <- c('DLPFC', 'TCX', 'CBE', 'FP', 'IFG', 'PHG', 'STG')
 
+Syn <- list('DLPFC', 'TCX', 'CBE', 'FP', 'IFG', 'PHG', 'STG')
+
 #Useable Chrs for genelist ENSG  translations and wiki analysis preamble
 row.names(Trans) <- Trans$ensembl_gene_id
 Trans <- Trans[ Trans$chromosome_name %in% c(1:22,"X","Y"), ]
@@ -40,28 +42,12 @@ writeLines(paste0('For each tissue specified in ',
 Missing <- list()
 Plots <- list()
 
+FinalTis <- data.frame()
+
 for( Tissue in config$tissue ){
-  
-  # Set annotations for synapse objects ( figures and tables )
-  all.annotations = list(
-    dataType = 'Coexpression',
-    dataSubType = 'pheatmap PDF',
-    summaryLevel = 'gene',
-    assay	 = 'RNAseq',
-    tissueTypeAbrv	= Tissue, 
-    study = Study[Tissue], 
-    organism = 'HomoSapiens',
-    consortium	= 'AMPAD',
-    normalizationStatus	= TRUE,
-    normalizationType	= 'CQN',
-    rnaquantification = 'RSEM',
-    genomeAssemblyID = 'GRCh38'
-  )
   
   Syns_Used <- NULL
   #Tissue <- 'STG'
-  activityName = paste0( Tissue, 'Coexpression heatmap')
-  activityDescription = paste0( Tissue, 'Coexpression heatmap for genelist: ', config$genelistfile);
   
   #Load expression for tissue
   exp <- read.table(syn_temp$get(as.character(ExpressionDS[Tissue]))$path, header =T, sep ='\t', row.names=1)
@@ -106,7 +92,28 @@ for( Tissue in config$tissue ){
   #Build output matrix for partial correlation
   
   #Pairwise spearman correlation of genes
-  XCor <- cor(x, method = "spearman") 
+  XCor <- cor(x, method = "spearman")
+  
+  mark<-Sys.time()
+  FOO <- psych::corr.test(x, method = "spearman")
+  Sys.time()-mark
+  
+  cor.test.p <- function(x){
+    FUN <- function(x, y) cor.test(x, y, method = "spearman")[["p.value"]]
+    z <- outer(
+      colnames(x), 
+      colnames(x), 
+      Vectorize(function(i,j) FUN(x[,i], x[,j]))
+    )
+    dimnames(z) <- list(colnames(x), colnames(x))
+    z
+  }
+  
+  mark<-Sys.time()
+  FOO <- cor.test.p(x)
+  Sys.time()-mark
+  
+  
   
   #Prep for partial correlation detection
   Final <- data.frame()
@@ -141,15 +148,69 @@ for( Tissue in config$tissue ){
   }
   Sys.time() - mark
   
-  #Replace ENSGs with gene names for plotting
+  SwapName <- GeneData( colnames(x) , 'ENSG' )
+  #row.names(SwapName) <- SwapName$ensembl_gene_id
+  # Replace blank gene names
+  SwapName[SwapName$hgnc_symbol=="",]$hgnc_symbol <- SwapName[SwapName$hgnc_symbol=="",]$ensembl_gene_id
+  SwapName <- SwapName[ !duplicated(SwapName$ensembl_gene_id), ]
+  row.names(SwapName) <- SwapName$ensembl_gene_id
   
+  SwapName$ensembl_gene_id <- as.character(SwapName$ensembl_gene_id)
+  SwapName$hgnc_symbol <- as.character(SwapName$hgnc_symbol)
+  SwapName$chromosome_name <- as.character(SwapName$chromosome_name)
+  #SwapName$start_position <- as.numeric(as.character(SwapName$hgnc_symbol))
+  #SwapName$end_position <- as.numeric(as.character(SwapName$hgnc_symbol))
   
+  addon <- as.data.frame( matrix( NA, length(colnames(x)[ (colnames(x) %in% row.names(SwapName)) == F ]), 5) )
+  addon[,1] <- colnames(x)[ (colnames(x) %in% row.names(SwapName)) == F ]
+  addon[,2] <- colnames(x)[ (colnames(x) %in% row.names(SwapName)) == F ]
+  row.names(addon) <- addon[,1]
+  colnames(addon) <- colnames(SwapName)
+  
+  addon$chromosome_name <- as.character(addon$chromosome_name)
+  addon$start_position <- as.integer(addon$start_position)
+  addon$end_position <- as.integer(addon$end_position)
+  
+  SwapName <- as.data.frame( rbind(addon,SwapName) )
+  #Rename the output partial correlation matrix:
   
   #row.names(Final) <- Trans[ row.names(Final), ]$hgnc_symbol
+  Final$Target_GeneName <- SwapName[ as.character(Final$Target_Gene),]$hgnc_symbol
+  Final$Hit_GeneName <- SwapName[ as.character(Final$Hit_Gene),]$hgnc_symbol
   #colnames(Final) <- Trans[ colnames(Final), ]$hgnc_symbol
   
+  ORD <- c("Target_Gene", "Target_GeneName", 
+    "Seed_Set", "Hit_Tissue", "Hit_Data_Set",
+    "Hit_Gene", "Hit_GeneName",
+    "Hit_Probability", "Spearman_Correlation"
+  )
+  
+  Final <- Final[,ORD]
+  FinalTis <- do.call( rbind, list(FinalTis, Final) )
+  
   #Write Plot info to list, plot to file, and plot to wiki
-  Plots[[ Tissue ]] <- list(ParCor = Final, main=Tissue)
+  Ps <- data.frame( matrix( 0, length(table(Final$Target_Gene)), as.numeric(table(Final$Target_Gene)[1]) ))
+  row.names( Ps ) <- names(table(Final$Target_GeneName))
+  colnames( Ps ) <- names(table(Final$Hit_Gene))
+  
+  for( nom in row.names( Ps ) ){
+    small <- Final[ Final$Target_GeneName == nom, ]
+    row.names(small) <- as.character(small$Hit_Gene)
+    Ps[ nom, ] <- small[ colnames(Ps), ]$Hit_Probability
+  }
+  
+  #Exclude Hit Targets with zero probability:
+  Ps <- as.numeric(Ps)
+  at <- as.data.frame(sapply(Ps, as.numeric))
+  row.names(at) <- row.names(Ps)
+  
+  Ps = at[,colSums(at) > 0.4  ]
+  
+  
+  Plots[[ Tissue ]] <- list(ParCor = t(Ps), main=Tissue, show_rownames=F)
+  pheatmap(t(Ps), main=Tissue, show_rownames=F)
+  
+  eval( parse( text= paste0( 'Syn$', Tissue, '<- Syns_Used' ) ))
 }
 
 for( Tissue in config$tissue ){
@@ -197,7 +258,7 @@ for( Tissue in config$tissue ){
     genomeAssemblyID = 'GRCh38'
   )
   
-  #Syns_Used <- NULL
+  syns_Used <- eval( parse( text= paste0( 'Syn$', Tissue ) ))
   #Tissue <- 'STG'
   activityName = paste0( Tissue, 'Coexpression heatmap')
   activityDescription = paste0( Tissue, 'Coexpression heatmap for genelist: ', config$genelistfile);
@@ -206,7 +267,7 @@ for( Tissue in config$tissue ){
   ENRICH_OBJ <-  syn_temp$store( synapseclient$File( path=paste0(plotdir,'/', Tissue,'_Coexpression.pdf'), 
                                name = paste0(Tissue,' Coexpression.pdf'), 
                                parentId=CODE$properties$id ), 
-                               used = Syns_Used,
+                               used = syns_Used,
                                activityName = activityName, 
                                executed = list(GL_File, CF_File, I_File, M_File),
                                activityDescription = activityDescription)
@@ -214,3 +275,6 @@ for( Tissue in config$tissue ){
   all.annotations$dataSubType = 'pheatmap PDF'
   syn_temp$setAnnotations(ENRICH_OBJ, annotations = all.annotations)
 }
+
+#Save the Partial Cor table/List Object
+write.table(FinalTis, )
