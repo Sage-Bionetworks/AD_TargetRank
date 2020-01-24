@@ -3,6 +3,9 @@
 
 # Load Libraries and se working directory 
 library(pheatmap)
+library(parallel)
+library(doParallel)
+
 setwd( config$filedir )
 
 # Set Github Provenance links
@@ -90,8 +93,8 @@ for( Tissue in config$tissue ){
   row.names(Exp) <- row.names(t(exp)) 
   colnames(Exp) <- colnames(t(exp)) 
   
-  x <- Exp[ , colnames(Exp) %in% row.names(Trans)]
-  
+  #x <- Exp[ , colnames(Exp) %in% row.names(Trans)]
+  x <- Exp
   #Record Genes missing in tissue of interest
   if( as.numeric(table(row.names(Trans) %in% colnames(x) )["TRUE"] ) == dim(Trans)[1] ){
     Missing[[ Tissue ]] <- paste0("All Listed Genes Expressed in ", Tissue)
@@ -101,24 +104,49 @@ for( Tissue in config$tissue ){
                                  )
   }
   #Build output matrix for partial correlation
-  if(length(Missing))
-  Final <- matrix( NA, length(colnames(x)), length(colnames(x)) )
-  row.names(Final) <- colnames(x)
-  colnames(Final) <- colnames(x)
   
+  #Pairwise spearman correlation of genes
+  XCor <- cor(x, method = "spearman") 
+  
+  #Prep for partial correlation detection
+  Final <- data.frame()
+  core <- parallel::detectCores()-2 
+  source("~/AD_TargetRank/utilityFunctions/Parallel_vbsrBootstrap.R")
   #Run Partial correlations for each gene
-  for( i in colnames(x) ){
+  mark <- Sys.time()
+  for( i in row.names(Trans) ){
     OBS <- i
     y <- as.matrix(x[,OBS]) 
     colnames(y) <- i
     X <- x[,(colnames(x) %in% OBS) == F ]
-    att <- spike::vbsrBootstrap( y=y,x=X,nsamp=1000,cores=4)
     
-    eval(parse(text = paste0("Final[ i,] <- c( att[ (names(att) %in% 'intercept')==F ], ", i, " = 1)[colnames(Final)]") ))
+    att <- pvbsrBootstrap( y=y, x=X, nsamp=100, cores=core )
+    
+    #Build Iteration based DF
+    temp <- as.data.frame( cbind( Target_Gene = rep(i,length(att)), 
+                Seed_Set = rep(config$runID,length(att)),
+                Hit_Tissue = rep(Tissue,length(att)),
+                Hit_Data_Set = rep( as.character(Study[Tissue]),length(att) ),
+                Hit_Gene = names(att),
+                Hit_Probability= as.numeric(att),
+                Spearman_Correlation= rep( NA,length(att) )
+              ))
+    
+    temp$Hit_Gene <- as.character(temp$Hit_Gene)
+    temp[ temp$Hit_Gene == 'intercept',]$Hit_Gene <- i
+    temp$Spearman_Correlation <- XCor[ i, temp$Hit_Gene ]
+    
+    #Add to Genelist based DF
+    Final <- as.data.frame(rbind(temp,Final))
   }
+  Sys.time() - mark
+  
   #Replace ENSGs with gene names for plotting
-  row.names(Final) <- Trans[ row.names(Final), ]$hgnc_symbol
-  colnames(Final) <- Trans[ colnames(Final), ]$hgnc_symbol
+  
+  
+  
+  #row.names(Final) <- Trans[ row.names(Final), ]$hgnc_symbol
+  #colnames(Final) <- Trans[ colnames(Final), ]$hgnc_symbol
   
   #Write Plot info to list, plot to file, and plot to wiki
   Plots[[ Tissue ]] <- list(ParCor = Final, main=Tissue)
