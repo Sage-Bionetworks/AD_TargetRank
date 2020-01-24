@@ -68,7 +68,7 @@ RUN apt-get update\
 && R -e "devtools::install_github('rlbarter/superheat')"\
 && R -e "devtools::install_github('blogsdon/spike/spike')"\
 && R -e "install.packages('ggrepel', repos = 'http://cran.us.r-project.org')"\
-&& R -e "install.packages('kableExtra', repos = 'http://cran.us.r-project.org)"\
+&& R -e "install.packages('kableExtra', repos = 'http://cran.us.r-project.org')"\
 && R -e "BiocManager::install('limma')"\
 && R -e "install.packages('vbsr', repos='http://cran.us.r-project.org')"\
 && R -e "BiocManager::install('edgeR')"\
