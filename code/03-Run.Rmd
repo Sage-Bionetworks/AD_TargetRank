@@ -34,7 +34,7 @@ print(getwd())
 ```{r yamlIMPT, eval = T, include=T}
 print(getwd())
 #Assign your YAML formated config file to a varable
-configuration <- "configs/M62.yaml"
+configuration <- "configs/EmoryTargets.yaml"
 config <- read_yaml(file=paste0('./',configuration))
 
 setwd(config$filedir)

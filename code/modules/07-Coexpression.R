@@ -74,6 +74,8 @@ for( Tissue in config$tissue ){
   }
   
   #Impute svalues for given gene-patient NA values
+  exp <- exp[rowSums(is.na(exp))<ncol(exp), ]
+  
   foo <- bcv::impute.svd( t(exp) )
   Exp <- foo$x
   row.names(Exp) <- row.names(t(exp)) 
@@ -94,26 +96,9 @@ for( Tissue in config$tissue ){
   #Pairwise spearman correlation of genes
   XCor <- cor(x, method = "spearman")
   
-  mark<-Sys.time()
-  FOO <- psych::corr.test(x, method = "spearman")
-  Sys.time()-mark
-  
-  cor.test.p <- function(x){
-    FUN <- function(x, y) cor.test(x, y, method = "spearman")[["p.value"]]
-    z <- outer(
-      colnames(x), 
-      colnames(x), 
-      Vectorize(function(i,j) FUN(x[,i], x[,j]))
-    )
-    dimnames(z) <- list(colnames(x), colnames(x))
-    z
-  }
-  
-  mark<-Sys.time()
-  FOO <- cor.test.p(x)
-  Sys.time()-mark
-  
-  
+  #mark<-Sys.time()
+  #FOO <- psych::corr.test(x, method = "spearman")
+  #Sys.time()-mark
   
   #Prep for partial correlation detection
   Final <- data.frame()
@@ -200,15 +185,15 @@ for( Tissue in config$tissue ){
   }
   
   #Exclude Hit Targets with zero probability:
-  Ps <- as.numeric(Ps)
+  #Ps <- as.numeric(Ps)
   at <- as.data.frame(sapply(Ps, as.numeric))
   row.names(at) <- row.names(Ps)
   
   Ps = at[,colSums(at) > 0.4  ]
   
   
-  Plots[[ Tissue ]] <- list(ParCor = t(Ps), main=Tissue, show_rownames=F)
-  pheatmap(t(Ps), main=Tissue, show_rownames=F)
+  Plots[[ Tissue ]] <- list(ParCor = t(Ps), main=Tissue)
+  #pheatmap(t(Ps), main=Tissue, show_rownames=F)
   
   eval( parse( text= paste0( 'Syn$', Tissue, '<- Syns_Used' ) ))
 }
@@ -218,22 +203,22 @@ for( Tissue in config$tissue ){
                               Tissue,
                               '$ParCor, main=Plots$',
                               Tissue,
-                              '$main)' 
+                              '$main, show_rownames=F)'
                          )))
 } 
 for( Tissue in config$tissue ){
   #pheatmap(Final, main=paste0(Tissue))
   writeLines(paste0(Missing[[ Tissue ]]))
   
-  #dev.off()
-  #plot.new()
+  dev.off()
+  plot.new()
   pdf( file = paste0(plotdir,'/', Tissue,'_Coexpression.pdf') )
     #pheatmap(Final, main=Tissue)
     eval( parse( text = paste0( 'pheatmap(Plots$',
                               Tissue,
                               '$ParCor, main=Plots$',
                               Tissue,
-                              '$main)'  
+                              '$main, show_rownames=F)'  
                             )))
   Sys.sleep(2)
   dev.off()
@@ -277,4 +262,39 @@ for( Tissue in config$tissue ){
 }
 
 #Save the Partial Cor table/List Object
-write.table(FinalTis, )
+write.table( FinalTis, file = paste0('runs/',config$runID,'/PartialCorrelationPerms.tsv'), quote = F, row.names = F, col.names = T,  )
+
+# Set annotations for synapse objects ( figures and tables )
+all.annotations = list(
+  dataType = 'Coexpression',
+  dataSubType = 'partial correlations',
+  summaryLevel = 'gene',
+  assay	 = 'RNAseq',
+  tissueTypeAbrv	= config$tissue, 
+  study = c('Mayo', "MSBB", 'RosMap'), 
+  organism = 'HomoSapiens',
+  consortium	= 'AMPAD',
+  normalizationStatus	= TRUE,
+  normalizationType	= 'CQN',
+  rnaquantification = 'RSEM',
+  genomeAssemblyID = 'GRCh38'
+)
+
+syns_Used <- eval(parse(text=paste0( 'c(', paste0('Syn$', config$tissue, collapse =", " ), ')')))
+
+activityName = paste0( Tissue, 'Coexpression heatmap')
+activityDescription = paste0( Tissue, 'Coexpression heatmap for genelist: ', config$genelistfile)
+
+CODE <- syn_temp$store(synapseclient$Folder(name = 'data', parentId = RunParent))
+
+ENRICH_OBJ <-  syn_temp$store( synapseclient$File( path=paste0('runs/',config$runID,'/PartialCorrelationPerms.tsv'), 
+                                                   name = paste0('PartialCorrelationPerms.tsv'), 
+                                                   parentId=CODE$properties$id ), 
+                               used = syns_Used,
+                               activityName = activityName, 
+                               executed = list(GL_File, CF_File, I_File, M_File),
+                               activityDescription = activityDescription)
+
+all.annotations$dataSubType = 'Partial Correlations'
+syn_temp$setAnnotations(ENRICH_OBJ, annotations = all.annotations)
+
