@@ -12,6 +12,13 @@ source("~/AD_TargetRank/utilityFunctions/hook_synapseMdSyntax_plot.R")
 ExpressionDS <- c('syn21291908','syn21292041','syn21285564','syn21285564','syn21285564','syn21285564','syn21291908')
 names( ExpressionDS ) <- c('CBE', 'DLPFC', 'FP', 'IFG', 'PHG', 'STG', 'TCX')
 
+#Study ID Translator
+Study <- c( 'RosMap', 'Mayo', 'Mayo', 'MSBB', 'MSBB', 'MSBB', 'MSBB')
+names(Study) <- c('DLPFC', 'TCX', 'CBE', 'FP', 'IFG', 'PHG', 'STG')
+
+cl <- makeCluster(detectCores()-2)
+registerDoParallel(cl)
+
 for( Tissue in c('CBE', 'DLPFC', 'FP', 'IFG', 'PHG', 'STG', 'TCX') ){
   
   Syns_Used <- NULL
@@ -48,35 +55,53 @@ for( Tissue in c('CBE', 'DLPFC', 'FP', 'IFG', 'PHG', 'STG', 'TCX') ){
   
   x <- Exp
   
-  LIST <- as.data.frame(combn(colnames(x)[1:10],2))
+  RUNNEr <- function(n, x){
+    test <- cor.test( x[ ,n[1] ], x[ ,n[2] ], method = "spearman" )
+    return( c( colnames(x)[n[1]],
+               colnames(x)[n[2]], 
+               as.numeric(test$estimate), 
+               as.numeric(test$p.value), 
+               p.adjust( as.numeric(test$p.value), method = "fdr", n=dim(x)[2]) )
+          )
+  }
+  
+  mark <- Sys.time()
+  LIST <- combn(1:length(colnames(x)),2)
+  Sys.time()-mark
   
   rm(foo)
   rm(Exp)
   rm(exp)
   
-  RUNNEr <- function(n, x){
-    test <- cor.test( x[ ,n[1] ], x[ ,n[2] ], method = "spearman" )
-    return( c( n[1], n[2], as.numeric(test$estimate), as.numeric(test$p.value)) )
-  }
-  
-  cl <- makeCluster(detectCores()-2)
-  registerDoParallel(cl)
-  
   mark <- Sys.time()
   foo <- t(parApply(cl,LIST,2,RUNNEr,x))
   Sys.time()-mark
   
-  stopCluster(cl)
-  
   rm(LIST)
-  FOO <- as.data.frame( rbind(foo, foo[,c(2,1,3,4)]) ) 
+  
+  colnames(FOO) <- c("Target_Gene", "Hit_Gene", "Spearman_Correlation", "Spearman_pVal", "FDR_CorPval")
+  FOO$Spearman_Correlation <- as.numeric(as.character( FOO$Spearman_Correlation ))
+  FOO$Spearman_pVal <- as.numeric(as.character( FOO$Spearman_pVal ))
+  FOO$FDR_CorPval <- as.numeric(as.character( FOO$FDR_CorPval ))
+  FOO$Hit_Tissue <- rep( Tissue,dim(FOO)[1] )
+  FOO$Hit_Data_Set <- rep( as.character(Study[Tissue]),dim(FOO)[1] )
+  #Write A to File
+  
+  #Write B to File - No header
+  #_#foo[,c(2,1,3,4,5)])
+  
+  #System Call Concatenate A and B
+  
+  #Erase A and B
+  
+  #Clear R Memory...
   rm(foo)
   
   #Push files to synapse:
-  thisRepo <- githubr::getRepo(repository = "jgockley62/AD_TargetRank", ref="branch", refName='master')
-  thisFile  <- githubr::getPermlink(repository = thisRepo, repositoryPath='code/prepscripts/07_1-SpearmanCor.R')
+  thisRepo <- githubr::getRepo(repository = "jgockley62/AD_TargetRank", ref="branch", refName='master' )
+  thisFile  <- githubr::getPermlink(repository = thisRepo, repositoryPath='code/prepscripts/07_1-SpearmanCor.R' )
   
-  CODE <- syn_temp$store(synapseclient$Folder(name = 'Reference Data', parentId = 'syn21532474'))
+  CODE <- syn_temp$store(synapseclient$Folder(name = 'Reference Data', parentId = 'syn21532474') )
   
   # Set annotations for synapse objects ( figures and tables )
   all.annotations = list(
@@ -116,3 +141,5 @@ for( Tissue in c('CBE', 'DLPFC', 'FP', 'IFG', 'PHG', 'STG', 'TCX') ){
   syn_temp$setAnnotations(ENRICH_OBJ, annotations = all.annotations)
   
 }
+
+stopCluster(cl)
