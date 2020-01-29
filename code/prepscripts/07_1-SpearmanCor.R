@@ -1,5 +1,6 @@
 library(parallel)
 library(doParallel)
+library(data.table)
 reticulate::use_python("/usr/bin/python", required = TRUE)
 synapseclient <- reticulate::import("synapseclient")
 syn_temp <- synapseclient$Synapse()
@@ -8,6 +9,7 @@ syn_temp$login()
 setwd("~/AD_TargetRank/")
 source("~/AD_TargetRank/utilityFunctions/knitfile2synapseClient.R")
 source("~/AD_TargetRank/utilityFunctions/hook_synapseMdSyntax_plot.R")
+parentId = 'syn21532474'
 
 ExpressionDS <- c('syn21291908','syn21292041','syn21285564','syn21285564','syn21285564','syn21285564','syn21291908')
 names( ExpressionDS ) <- c('CBE', 'DLPFC', 'FP', 'IFG', 'PHG', 'STG', 'TCX')
@@ -73,33 +75,23 @@ for( Tissue in c('CBE', 'DLPFC', 'FP', 'IFG', 'PHG', 'STG', 'TCX') ){
   rm(Exp)
   rm(exp)
   
-  mark <- Sys.time()
+  #mark <- Sys.time()
   foo <- t(parApply(cl,LIST,2,RUNNEr,x))
-  Sys.time()-mark
+  #Sys.time()-mark
   
   rm(LIST)
   
-  colnames(FOO) <- c("Target_Gene", "Hit_Gene", "Spearman_Correlation", "Spearman_pVal", "FDR_CorPval")
-  FOO$Spearman_Correlation <- as.numeric(as.character( FOO$Spearman_Correlation ))
-  FOO$Spearman_pVal <- as.numeric(as.character( FOO$Spearman_pVal ))
-  FOO$FDR_CorPval <- as.numeric(as.character( FOO$FDR_CorPval ))
-  FOO$Hit_Tissue <- rep( Tissue,dim(FOO)[1] )
-  FOO$Hit_Data_Set <- rep( as.character(Study[Tissue]),dim(FOO)[1] )
   #Write A to File
-  
-  #Write B to File - No header
-  #_#foo[,c(2,1,3,4,5)])
-  
-  #System Call Concatenate A and B
-  
-  #Erase A and B
-  
-  #Clear R Memory...
+  write.table(foo, "Attemp.txt", quote=F, row.names=F, col.names=F )
   rm(foo)
+  rm(x)
+  
+  system( paste0('tissue=', Tissue, '; cohort=', Study[Tissue], '; source code/prepscripts/SpearmanAnnotator.sh') )
   
   #Push files to synapse:
   thisRepo <- githubr::getRepo(repository = "jgockley62/AD_TargetRank", ref="branch", refName='master' )
   thisFile  <- githubr::getPermlink(repository = thisRepo, repositoryPath='code/prepscripts/07_1-SpearmanCor.R' )
+  thisFileAlso  <- githubr::getPermlink(repository = thisRepo, repositoryPath='code/prepscripts/SpearmanAnnotator.sh' )
   
   CODE <- syn_temp$store(synapseclient$Folder(name = 'Reference Data', parentId = 'syn21532474') )
   
@@ -109,7 +101,7 @@ for( Tissue in c('CBE', 'DLPFC', 'FP', 'IFG', 'PHG', 'STG', 'TCX') ){
     dataSubType = 'spearman correlations',
     summaryLevel = 'gene',
     assay	 = 'RNAseq',
-    tissueTypeAbrv	= config$tissue, 
+    tissueTypeAbrv	= Tissue, 
     study = c('Mayo', "MSBB", 'RosMap'), 
     organism = 'HomoSapiens',
     consortium	= 'AMPAD',
@@ -119,27 +111,25 @@ for( Tissue in c('CBE', 'DLPFC', 'FP', 'IFG', 'PHG', 'STG', 'TCX') ){
     genomeAssemblyID = 'GRCh38'
   )
   
-  #syns_Used <- eval(parse(text=paste0( 'c(', paste0('Syn$', config$tissue, collapse =", " ), ')')))
+  activityName = paste0( Tissue, 'Spearman Correlations')
+  activityDescription = paste0( Tissue, 'Spearman Correlations and pValues')
   
-  activityName = paste0( Tissue, 'Coexpression heatmap')
-  activityDescription = paste0( Tissue, 'Coexpression heatmap for genelist: ', config$genelistfile)
+  CODE <- syn_temp$store(synapseclient$Folder(name = 'Reference Data', parentId = parentId))
   
-  CODE <- syn_temp$store(synapseclient$Folder(name = 'data', parentId = RunParent))
-  
-  write.table(OUT_Cor, file = paste0('./', Tissue, '_OUT_Cor.tsv'), row.names = T, col.names = T, quote=F, sep='\t' )
-  write.table(OUT_pVal, file = paste0('./', Tissue, '_OUT_pval.tsv'), row.names = T, col.names = T, quote=F, sep='\t')
-  
-  ENRICH_OBJ <-  syn_temp$store( synapseclient$File( path=paste0('runs/',config$runID,'PartialCorrelationPerms.tsv'), 
-                                                     name = paste0('PartialCorrelationPerms.tsv'), 
+  ENRICH_OBJ <-  syn_temp$store( synapseclient$File( path=paste0(Tissue,'_SpearmanCor.txt'), 
+                                                     name = paste0(Tissue,' Spearman Correlations'), 
                                                      parentId=CODE$properties$id ), 
-                                 used = Syns_Used,
-                                 activityName = activityName, 
-                                 executed = list(thisFile),
-                                 activityDescription = activityDescription)
+                                                     used = Syns_Used,
+                                                     activityName = activityName, 
+                                                     executed = list(thisFile, thisFileAlso),
+                                                     activityDescription = activityDescription)
   
   all.annotations$dataSubType = 'Spearman Correlations'
   syn_temp$setAnnotations(ENRICH_OBJ, annotations = all.annotations)
   
+  #Remove Latent Files
+  system('rm Attemp.txt')
+  system(paste0('rm ', Tissue, '_SpearmanCor.txt'))
 }
 
 stopCluster(cl)
