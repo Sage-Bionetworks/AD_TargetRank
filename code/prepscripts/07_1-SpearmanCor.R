@@ -18,8 +18,6 @@ names( ExpressionDS ) <- c('CBE', 'DLPFC', 'FP', 'IFG', 'PHG', 'STG', 'TCX')
 Study <- c( 'RosMap', 'Mayo', 'Mayo', 'MSBB', 'MSBB', 'MSBB', 'MSBB')
 names(Study) <- c('DLPFC', 'TCX', 'CBE', 'FP', 'IFG', 'PHG', 'STG')
 
-cl <- makeCluster(detectCores()-2)
-registerDoParallel(cl)
 
 for( Tissue in c('CBE', 'DLPFC', 'FP', 'IFG', 'PHG', 'STG', 'TCX') ){
   
@@ -75,9 +73,12 @@ for( Tissue in c('CBE', 'DLPFC', 'FP', 'IFG', 'PHG', 'STG', 'TCX') ){
   rm(Exp)
   rm(exp)
   
+  cl <- makeCluster(detectCores()-2)
+  registerDoParallel(cl)
   #mark <- Sys.time()
   foo <- t(parApply(cl,LIST,2,RUNNEr,x))
   #Sys.time()-mark
+  stopCluster(cl)
   
   rm(LIST)
   
@@ -86,7 +87,7 @@ for( Tissue in c('CBE', 'DLPFC', 'FP', 'IFG', 'PHG', 'STG', 'TCX') ){
   rm(foo)
   rm(x)
   
-  system( paste0('tissue=', Tissue, '; cohort=', Study[Tissue], '; source code/prepscripts/SpearmanAnnotator.sh') )
+  system( paste0('bash code/prepscripts/SpearmanAnnotator.sh ', Tissue, ' ', Study[Tissue] ) )
   
   #Push files to synapse:
   thisRepo <- githubr::getRepo(repository = "jgockley62/AD_TargetRank", ref="branch", refName='master' )
@@ -128,8 +129,8 @@ for( Tissue in c('CBE', 'DLPFC', 'FP', 'IFG', 'PHG', 'STG', 'TCX') ){
   syn_temp$setAnnotations(ENRICH_OBJ, annotations = all.annotations)
   
   #Remove Latent Files
-  system('rm Attemp.txt')
-  system(paste0('rm ', Tissue, '_SpearmanCor.txt'))
+  file.remove('Attemp.txt')
+  file.remove(paste0(Tissue, '_SpearmanCor.txt'))
 }
 
-stopCluster(cl)
+
