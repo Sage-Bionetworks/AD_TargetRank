@@ -112,6 +112,21 @@ for( Tissue in config$tissue ){
     colnames(y) <- i
     X <- x[,(colnames(x) %in% OBS) == F ]
     
+    
+    mark <- Sys.time()
+    att <- pvbsrBootstrap( y=y, x=X, nsamp=200, cores=15 )
+    Sys.time()-mark
+    
+    mark <- Sys.time()
+    att <- pvbsrBootstrap( y=y, x=X, nsamp=500, cores=15 )
+    Sys.time()-mark
+    
+    mark <- Sys.time()
+    att <- pvbsrBootstrap( y=y, x=X, nsamp=1000, cores=15 )
+    Sys.time()-mark
+    
+    
+    
     att <- pvbsrBootstrap( y=y, x=X, nsamp=100, cores=core )
     
     #Build Iteration based DF
