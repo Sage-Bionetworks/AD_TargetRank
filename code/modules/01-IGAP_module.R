@@ -1,6 +1,7 @@
 #Load IGAP files
 #IGAP <- read.table( synfile = "/Users/jgockley/Desktop/Projects/AMP-AD_Targets/Candidate_Target_Profiler/RefrenceData/IGAP_stage_1_2_combined.txt", sep = "\t", header = T)
 #IGAP1 <- read.table( file = "/Users/jgockley/Desktop/Projects/AMP-AD_Targets/Candidate_Target_Profiler/RefrenceData/IGAP_stage_1.txt", sep = "\t", header = T)
+syn_temp$login()
 IGAP <- read.table( syn_temp$get('syn21534587')$path, sep = "\t", header = T)
 IGAP1 <- read.table( syn_temp$get('syn21534586')$path, sep = "\t", header = T)
 
@@ -18,6 +19,8 @@ MedianScoreIGAP <- NULL
 
 #Look at the dataframe 
 BestScoreIGAP <- NULL
+
+#save.image("TempA.RData")
 
 for( i in 1:dim(Tab)[1]){
   
@@ -84,13 +87,14 @@ row.names(Tab) <- Tab$ENSG
 
 TotalIGAP$LogP <- -log(TotalIGAP$Pvalue)
 
+#Replace Infinite values with max + one
+TotalIGAP[ TotalIGAP$LogP == Inf, ]$LogP <- max(TotalIGAP$LogP[TotalIGAP$LogP!=Inf]+1)
+
 p <- ggplot(TotalIGAP, aes(x=GeneName, y=LogP)) + 
-  geom_violin() + geom_boxplot(width=0.1) +
+  geom_violin( ) + geom_boxplot(width=0.1, outlier.shape=NA) +
   geom_jitter(shape=16, size=.1, position=position_jitter(0.2)) +
   theme(axis.text.x = element_text(angle = 45) ) + ylab('-Log(P-Value)')  
 #p 
-#Replace Infinite values with max + one
-TotalIGAP[ TotalIGAP$LogP == Inf, ]$LogP <- max(TotalIGAP$LogP[TotalIGAP$LogP!=Inf]+1)
 
 setEPS()
 postscript(file = paste0(plotdir,'/TotalIGAP.eps') )
@@ -106,19 +110,20 @@ FOO[ FOO$Pvalue == Inf,]$Pvalue <- max(FOO$Pvalue[FOO$Pvalue!=Inf]+1)
 IGAP$Rank<-rank(-IGAP$Pvalue)
 FOO<-IGAP
 FOO$Pvalue <- -log(FOO$Pvalue)
-#Replace Infinite values with max + one
+#Replace Infinite values with max + one and zero vals w/ min/100
 FOO[ FOO$Pvalue == Inf,]$Pvalue <- max(FOO$Pvalue[FOO$Pvalue!=Inf]+1)
+#FOO[ FOO$Pvalue == 0,]$Pvalue <- min(FOO$Pvalue[FOO$Pvalue>0])/100
 
 FOO$RankModel <- (FOO$Rank/max(FOO$Rank))
 
 Pr <- ggplot( FOO, aes(x=Pvalue, y=RankModel)) +
-  geom_point() + xlab("-log(P-Value") + geom_smooth(method = "glm", method.args = list(family = "binomial"), se = FALSE)
+  geom_point() + xlab("-log(P-Value") + geom_smooth(method = "glm", method.args = list(family = quasibinomial(link = 'logit')), se = FALSE)
 #Pr
 
 setEPS()
 postscript(file = paste0(plotdir,'/IGAP_WeightModel.eps') )
 ggplot( FOO, aes(x=Pvalue, y=RankModel)) +
-  geom_point() + xlab("-log(P-Value") + geom_smooth(method = "glm", method.args = list(family = "binomial"), se = FALSE)
+  geom_point() + xlab("-log(P-Value") + geom_smooth(method = "glm", method.args = list(family = quasibinomial(link = 'logit')), se = FALSE)
 dev.off()
 
 #Fit Logistic Model:
@@ -148,13 +153,13 @@ colnames(temp)[10] <- "y"
 
 Total <- rbind(Temp,temp)
 Pt <- ggplot( Total, aes(x=Pvalue, y=y, col=Type)) + scale_color_manual(values=c( "#E69F00", "#56B4E9")) +
-  geom_point() + xlab("-log(P-Value)") + geom_smooth(method = "glm", method.args = list(family = "binomial"), colour="black", size=0.5, se = FALSE)  
+  geom_point() + xlab("-log(P-Value)") + geom_smooth(method = "glm", method.args = list(family = quasibinomial(link = 'logit')), colour="black", size=0.5, se = FALSE)  
 #Pt
 
 setEPS()
 postscript(file = paste0(plotdir,'/Fitted_IGAP_WeightModel.eps') )
 ggplot( Total, aes(x=Pvalue, y=y, col=Type)) + scale_color_manual(values=c( "#E69F00", "#56B4E9")) +
-  geom_point() + xlab("-log(P-Value)") + geom_smooth(method = "glm", method.args = list(family = "binomial"), colour="black", size=0.5, se = FALSE)  
+  geom_point() + xlab("-log(P-Value)") + geom_smooth(method = "glm", method.args = list(family = quasibinomial(link = 'logit')), colour="black", size=0.5, se = FALSE)  
 dev.off()
 
 #Remove the pval ties
@@ -163,14 +168,17 @@ BestScoreIGAP$Wts <- LogisticScorer(-log(BestScoreIGAP$Pvalue))
 BestScoreIGAP$LogP <- -log(BestScoreIGAP$Pvalue)
 
 Py <- ggplot( BestScoreIGAP, aes(x=LogP, y=Wts, col=GeneName)) +
-  geom_point() + xlab("-log(P-Value)") + ylab("IGAP Weight") + geom_smooth( data=Total, aes(x=Pvalue, y=y, col=Type), method = "glm", method.args = list(family = "binomial"), colour="black", size=0.5, se = FALSE) + geom_label_repel(aes(label = GeneName),                                                                                                                                                                                                                                    box.padding   = 0.35, 
-                                                                                                                                                                                                                                        point.padding = 0.5,                                                                                                                                                                                                                                     segment.color = 'grey50') 
+  geom_point() + xlab("-log(P-Value)") + ylab("IGAP Weight") + 
+  geom_smooth( data=Total, aes(x=Pvalue, y=y, col=Type), method = "glm", method.args = list(family = quasibinomial(link = 'logit')), colour="black", size=0.5, se = FALSE) + 
+  geom_label_repel(aes(label = GeneName), box.padding = 0.35, point.padding = 0.5, segment.color = 'grey50') 
+
 #Py
 setEPS()
 postscript(file = paste0(plotdir,'/Best_IGAP_Weight_Score.eps') )
 ggplot( BestScoreIGAP, aes(x=LogP, y=Wts, col=GeneName)) +
-  geom_point() + xlab("-log(P-Value)") + ylab("IGAP Weight") + geom_smooth( data=Total, aes(x=Pvalue, y=y, col=Type), method = "glm", method.args = list(family = "binomial"), colour="black", size=0.5, se = FALSE) + geom_label_repel(aes(label = GeneName),
-                                                                                                                                                                                                                                        box.padding   = 0.35,                                                                                                                                                                                                                                     point.padding = 0.5,                                                                                                                                                                                                                                       segment.color = 'grey50')  
+  geom_point() + xlab("-log(P-Value)") + ylab("IGAP Weight") + 
+  geom_smooth( data=Total, aes(x=Pvalue, y=y, col=Type), method = "glm", method.args = list(family = quasibinomial(link = 'logit')), colour="black", size=0.5, se = FALSE) + 
+  geom_label_repel(aes(label = GeneName), box.padding = 0.35, point.padding = 0.5, segment.color = 'grey50')  
 dev.off()
 
 lay <- rbind(c(1,2),c(3,4))
@@ -207,3 +215,4 @@ save_kable(
   
   file=paste0(tabledir,'/IGAPStats.pdf')
 )
+

@@ -105,24 +105,45 @@ for( Tissue in config$tissue ){
   core <- parallel::detectCores()-2 
   source("~/AD_TargetRank/utilityFunctions/Parallel_vbsrBootstrap.R")
   #Run Partial correlations for each gene
+  RUNNe <- function( i=i, x=x){
+    OBS <- i
+    y <- as.matrix(x[,OBS]) 
+    colnames(y) <- i
+    X <- x[,(colnames(x) %in% OBS) == F ]
+    att <- pvbsrBootstrap( y=y, x=X, nsamp=10, cores=1 )
+    names( att["intercept"] ) <- eval( parse(text = OBS))
+    return(att)
+  }
   mark <- Sys.time()
+  
+  Sys.time()-mark
+  
   for( i in row.names(Trans) ){
     OBS <- i
+    #OBS <- 'ENSG00000084234'
     y <- as.matrix(x[,OBS]) 
     colnames(y) <- i
     X <- x[,(colnames(x) %in% OBS) == F ]
     
     
     mark <- Sys.time()
-    att <- pvbsrBootstrap( y=y, x=X, nsamp=200, cores=15 )
+    att <- pvbsrBootstrap( y=y, x=X, nsamp=10, cores=1 )
     Sys.time()-mark
     
     mark <- Sys.time()
-    att <- pvbsrBootstrap( y=y, x=X, nsamp=500, cores=15 )
+    att <- pvbsrBootstrap( y=y, x=X, nsamp=100, cores=1 )
     Sys.time()-mark
     
     mark <- Sys.time()
-    att <- pvbsrBootstrap( y=y, x=X, nsamp=1000, cores=15 )
+    att <- pvbsrBootstrap( y=y, x=X, nsamp=200, cores=1 )
+    Sys.time()-mark
+    
+    mark <- Sys.time()
+    att <- pvbsrBootstrap( y=y, x=X, nsamp=500, cores=1 )
+    Sys.time()-mark
+    
+    mark <- Sys.time()
+    att <- pvbsrBootstrap( y=y, x=X, nsamp=1000, cores=1 )
     Sys.time()-mark
     
     
