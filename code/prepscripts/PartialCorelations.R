@@ -59,8 +59,8 @@ for( Tissue in config$tissue ){
   activityDescription = paste0( Tissue,'Pairwise Partial Correlation Calculation');
   thisFileName <- 'PartialCorelations.R'
   # Github link
-  thisRepo <- githubr::getRepo(repository = "jgockley62/TWAS", ref="branch", refName='master')
-  thisFile <- githubr::getPermlink(repository = thisRepo, repositoryPath=paste0('code/',thisFileName))
+  thisRepo <- githubr::getRepo(repository = "Sage-Bionetworks/AD_TargetRank", ref="branch", refName='master')
+  thisFile <- githubr::getPermlink(repository = thisRepo, repositoryPath=paste0('code/prepscripts/',thisFileName))
   
   activityName = 'Covariate and Diagnosis Regression';
   activityDescription = 'Covariate analysis and Regression of aligned effective counts with GRCh38 with CQN normalisation (IFG, STG, FP, PHG)';
