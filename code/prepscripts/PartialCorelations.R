@@ -170,6 +170,14 @@ for( Tissue in config$tissue ){
   
   #Push to Synapse
   
+  # Store Matrix
+  ENRICH_OBJ <-  syn_temp$store( synapseclient$File( path=paste0(Tissue,"_PartialCorMatrix.tsv"), name = paste0(Tissue, ' Pairwise Partial correlation Matrix'), parentId=CODE$properties$id ), used = Syns_Used, activityName = activityName, executed = thisFile, activityDescription = activityDescription)
+  all.annotations$dataSubType = 'PartialCorrelationsForADTargetRank'
+  syn_temp$setAnnotations(ENRICH_OBJ, annotations = all.annotations)
+  # Store Tables
+  ENRICH_OBJ <-  syn_temp$store( synapseclient$File( path=paste0(Tissue,"_PartialCorTable.tsv"), name = paste0(Tissue, ' Pairwise Partial correlation Table'), parentId=CODE$properties$id ), used = Syns_Used, activityName = activityName, executed = thisFile, activityDescription = activityDescription)
+  all.annotations$dataSubType = 'PartialCorrelationsForADTargetRank'
+  syn_temp$setAnnotations(ENRICH_OBJ, annotations = all.annotations)
 } 
 
 stopCluster(cl)
