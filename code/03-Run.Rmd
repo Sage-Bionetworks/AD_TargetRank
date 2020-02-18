@@ -144,7 +144,7 @@ if( 1 %in% config$modules ){
 if( 2 %in% config$modules ){
   writeLines(paste0( 'Modeling and ranking genelist ', config$genelistfile ,' by Differential Expression evidence'))
   
-  source('code/modules/02-DiffExp_module.R')
+  source('code/modules/02-DiffExpression_module.R')
   
 }else{
   writeLines( paste0('Skipping Differential Expression based Model and Gene-Ranking: User specified module 2 not included in ', config$name) )
