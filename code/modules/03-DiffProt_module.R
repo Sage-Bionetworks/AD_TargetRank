@@ -166,7 +166,7 @@ ModelConstructProt <- function( de ){
       )))
       eval(parse( text=paste0( 'Plotz[["', Tissue, '"]] <- Pr' ) ))
       
-      ggsave( filename = paste0('DiffExpress_', Sex, '_',Tissue,'.eps'),
+      ggsave( filename = paste0('DiffExpress_',Tissue,'.eps'),
               plot = Pr,
               device = "eps",
               path = plotdir
