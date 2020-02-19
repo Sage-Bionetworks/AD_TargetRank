@@ -148,7 +148,7 @@ ModelConstructProt <- function( de ){
       eval(parse( text=paste0( 'Plotz[["', Tissue, '"]] <- Pr' ) ))
     }else{
       eval(parse( text=paste0( 
-        'Pr <- ggplot( data=Modelz$', Tissue, '[ Modelz$', Tissue, '$Type == \'Predicted Weight\' & (Models$', Tissue, '$ensembl_gene_id %in% Genes) == T , ], aes(x=log_abs_PVal, y=y, col=Sig)) +
+        'Pr <- ggplot( data=Modelz$', Tissue, '[ Modelz$', Tissue, '$Type == \'Predicted Weight\' & (Modelz$', Tissue, '$ensembl_gene_id %in% Genes) == T , ], aes(x=log_abs_PVal, y=y, col=Sig)) +
               geom_point() + 
               geom_smooth( data=Modelz$', Tissue, '[ Modelz$', Tissue, '$Type == \'Predicted Weight\', ], aes(x=log_abs_PVal, y=y), 
                     method = "glm", 
