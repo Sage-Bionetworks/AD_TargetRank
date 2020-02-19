@@ -11,7 +11,7 @@ tissue:
   - STG
   - TCX
 
-filedir: ~/AD_TargetRank
+filedir: /home/jgockley/AD_TargetRank
 
 figures: runs/figures
 tables: runs/tables
@@ -21,6 +21,12 @@ genelisttype: ENSG
 
 
 modules:
+  - 1
+  - 2
+  - 3
+  - 4
+  - 5
+  - 6
   - 7
 
   
