@@ -105,14 +105,17 @@ ggplot(TotalIGAP, aes(x=GeneName, y=LogP)) +
   theme(axis.text.x = element_text(angle = 45) ) + ylab('-Log(P-Value)') 
 dev.off()
 
+
+IGAP$Rank<-rank(-IGAP$Pvalue)
+FOO<-IGAP
+
 #Replace Infinite values with max + one
 if( Inf %in% FOO$Pvalue ){
   FOO[ FOO$Pvalue == Inf,]$Pvalue <- max(FOO$Pvalue[FOO$Pvalue!=Inf]+1)
 }else{
   
 }
-IGAP$Rank<-rank(-IGAP$Pvalue)
-FOO<-IGAP
+
 FOO$Pvalue <- -log(FOO$Pvalue)
 #Replace Infinite values with max + one and zero vals w/ min/100
 FOO[ FOO$Pvalue == Inf,]$Pvalue <- max(FOO$Pvalue[FOO$Pvalue!=Inf]+1)
