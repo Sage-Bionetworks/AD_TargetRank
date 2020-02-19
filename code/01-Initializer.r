@@ -27,7 +27,7 @@ synapseclient <- reticulate::import("synapseclient")
 syn_temp <- synapseclient$Synapse()
 syn_temp$login()
 
-setwd("~/AD_TargetRank/")
+setwd(config$filedir)
 source("~/AD_TargetRank/utilityFunctions/knitfile2synapseClient.R")
 source("~/AD_TargetRank/utilityFunctions/hook_synapseMdSyntax_plot.R")
 createAndKnitToFolderEntityClient(file = "~/AD_TargetRank/code/03-Run.Rmd",
