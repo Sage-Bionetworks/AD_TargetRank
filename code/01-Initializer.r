@@ -28,8 +28,8 @@ syn_temp <- synapseclient$Synapse()
 syn_temp$login()
 
 setwd(config$filedir)
-source("~/AD_TargetRank/utilityFunctions/knitfile2synapseClient.R")
-source("~/AD_TargetRank/utilityFunctions/hook_synapseMdSyntax_plot.R")
-createAndKnitToFolderEntityClient(file = "~/AD_TargetRank/code/03-Run.Rmd",
+source( paste0( config$filedir, "/utilityFunctions/knitfile2synapseClient.R"))
+source( paste0( config$filedir, "/utilityFunctions/hook_synapseMdSyntax_plot.R"))
+createAndKnitToFolderEntityClient(file = paste0( config$filedir, "/code/03-Run.Rmd" ),
                                   parentId =config$parentID,
                                   folderName = config$runID)
