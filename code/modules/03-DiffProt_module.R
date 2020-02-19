@@ -1,3 +1,5 @@
+Genes <- Tab$ENSG
+
 Prot <- read.csv( file = syn_temp$get('syn21534585')$path, header = T)
 Prot <- Prot[ complete.cases(Prot[,c("Log2_FC", "CI_Upr", "CI_Lwr", "PVal", "Cor_PVal")]), ]
 Prot <- Prot[complete.cases(Prot),]

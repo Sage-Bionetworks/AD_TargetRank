@@ -21,8 +21,6 @@ genelisttype: ENSG
 
 
 modules:
-  - 1
-  - 2
   - 3
   - 4
   - 5
