@@ -5,8 +5,8 @@ Genes <- Tab$ENSG
 Nets <- read.csv(file = syn_temp$get('syn21534603')$path, header=T)
 ZoomNet <- Nets[ (Nets$GeneID %in% Genes) == T, ]
 
-NetPlot <- as.data.frame(matrix(0,length(Genes),5))
-row.names(NetPlot) <- Genes
+NetPlot <- as.data.frame(matrix(0,length(Genes[!duplicated(Genes)]),5))
+row.names(NetPlot) <- Genes[!duplicated(Genes)]
 NetPlot$V1 <- row.names(NetPlot)
 colnames(NetPlot) <- c("ENSG", "GeneName", "InACluster", "NumberOfClusters", "BrainRegions")
 
