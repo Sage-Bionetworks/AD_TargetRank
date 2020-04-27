@@ -7,16 +7,10 @@ library(parallel)
 library(doParallel)
 library(spike)
 library(reshape2)
+library(parallel)
+library(doParallel)
+
 setwd( config$filedir )
-
-# Set Github Provenance links
-thisRepo <- githubr::getRepo(repository = "jgockley62/AD_TargetRank", ref="branch", refName='master')
-GL_File  <- githubr::getPermlink(repository = thisRepo, repositoryPath=config$genelistfile)
-CF_File  <- githubr::getPermlink(repository = thisRepo, repositoryPath=config$name)
-I_File  <- githubr::getPermlink(repository = thisRepo, repositoryPath='code/01-Initializer.r')
-M_File  <- githubr::getPermlink(repository = thisRepo, repositoryPath='code/02-Master.Rmd')
-
-CODE <- syn_temp$store(synapseclient$Folder(name = 'figures', parentId = RunParent))
 
 #SynIDs of expression data to pull from
 ExpressionDS <- c('syn21291908','syn21292041','syn21285564','syn21285564','syn21285564','syn21285564','syn21291908')
@@ -45,49 +39,45 @@ Plots <- list()
 
 FinalTis <- data.frame()
 
-library(parallel)
-library(doParallel)
-cores <- detectCores()-2 
-cl <- makePSOCKcluster(cores)
-registerDoParallel(cl)
+cores <- parallel::detectCores()-2 
+cl <- parallel::makePSOCKcluster(cores)
+doParallel::registerDoParallel(cl)
 
+# Set Github Provenance links
+# Github link
+parentId = 'syn21534582';
+activityName = 'Partial Correlations';
+activityDescription = 'Partial correltation Data';
+thisFileName <- 'PartialCorelations.R'
+thisRepo <- githubr::getRepo(repository = "Sage-Bionetworks/AD_TargetRank", ref="branch", refName='master')
+thisFile <- githubr::getPermlink(repository = thisRepo, repositoryPath=paste0('code/prepscripts/',thisFileName))
+
+### Store files in synapse
+activityName = 'Partial Correlations ';
+activityDescription = 'Pairwise partial correlations of genes for Target Prioritization';
+CODE <- syn_temp$store(synapseclient$Folder(name = "Reference Data", parentId = 'syn21534582'))
+
+# Set annotations
+all.annotations = list(
+  dataType = 'mRNA',
+  dataSubType = 'Partial Correlations',
+  summaryLevel = 'gene',
+  assay	 = 'RNAseq',
+  tissueTypeAbrv	= NULL, 
+  study = 'AMP-AD', 
+  organism = 'HomoSapiens',
+  consortium	= 'AMP-AD',
+  normalizationStatus	= TRUE,
+  normalizationType	= 'CQN',
+  rnaquantification = 'RSEM',
+  genomeAssemblyID = 'GRCh37'
+)
 
 for( Tissue in config$tissue ){
-  
-  parentId = 'syn21532474';
-  activityName = paste0( Tissue,' Partial Correlations');
-  activityDescription = paste0( Tissue,'Pairwise Partial Correlation Calculation');
-  thisFileName <- 'PartialCorelations.R'
-  # Github link
-  thisRepo <- githubr::getRepo(repository = "Sage-Bionetworks/AD_TargetRank", ref="branch", refName='master')
-  thisFile <- githubr::getPermlink(repository = thisRepo, repositoryPath=paste0('code/prepscripts/',thisFileName))
-  
-  activityName = 'Covariate and Diagnosis Regression';
-  activityDescription = 'Covariate analysis and Regression of aligned effective counts with GRCh38 with CQN normalisation (IFG, STG, FP, PHG)';
-  
-  CODE <- syn_temp$store(synapseclient$Folder(name = "Reference Data", parentId = parentId))
-  
-  #Set Used SynIDs For Provenance
-  # Set annotations
-  all.annotations = list(
-    dataType = 'RNA-Seq',
-    dataSubType = 'Partial Correlations',
-    summaryLevel = 'gene',
-    assay	 = 'RNAseq',
-    tissueTypeAbrv	= Tissue, 
-    study = paste0( Study[Tissue] ), 
-    organism = 'HomoSapiens',
-    consortium	= 'AMPAD',
-    normalizationStatus	= TRUE,
-    normalizationType	= 'CQN',
-    rnaquantification = 'RSEM',
-    genomeAssemblyID = 'GRCh37'
-  )
-  
-  
-  #Tissue<-'CBE'
+  message(paste0("Working on: ", Tissue))
+  #Tissue<-'DLPFC'
   Syns_Used <- as.character(ExpressionDS[Tissue])
-  #Tissue <- 'STG'
+  #Tissue <- 'IFG'
   
   #Load expression for tissue
   exp <- read.table(syn_temp$get(as.character(ExpressionDS[Tissue]))$path, header =T, sep ='\t', row.names=1)
@@ -122,17 +112,17 @@ for( Tissue in config$tissue ){
   colnames(Exp) <- colnames(t(exp)) 
   
   #Record Genes missing in tissue of interest
-  if( as.numeric(table(row.names(Trans) %in% colnames(x) )["TRUE"] ) == dim(Trans)[1] ){
+  if( as.numeric(table(row.names(Trans) %in% colnames(Exp) )["TRUE"] ) == dim(Trans)[1] ){
     Missing[[ Tissue ]] <- paste0("All Listed Genes Expressed in ", Tissue)
   }else{
     Missing[[ Tissue ]] <- paste0( "Queried Genes missing from ", Tissue, " : ",
-                                   paste(c(Trans[ (row.names(Trans) %in% colnames(x) ) == F, ]$hgnc_symbol), collapse = ', ')
+                                   paste(c(Trans[ (row.names(Trans) %in% colnames(Exp) ) == F, ]$hgnc_symbol), collapse = ', ')
     )
   }
   #Build output matrix for partial correlation
   
   #Pairwise spearman correlation of genes
-  XCor <- cor(x, method = "spearman")
+  #XCor <- cor(Exp, method = "spearman")
   
   #Prep for partial correlation detection
   Final <- data.frame()
@@ -140,7 +130,7 @@ for( Tissue in config$tissue ){
   source("~/AD_TargetRank/utilityFunctions/Parallel_vbsrBootstrap.R")
   #Run Partial correlations for each gene
   
-  RUNNe <- function( i=i, x=x ){ 
+  RUNNe <- function( i=i, x=Exp ){ 
     source("~/AD_TargetRank/utilityFunctions/Parallel_vbsrBootstrap.R")
     OBS <- i
     #OBS <- 'ENSG00000227232'
@@ -154,10 +144,10 @@ for( Tissue in config$tissue ){
     #return(eval(parse( text = paste( c( OBS,att[colnames(x)]), sep='\t') )))
   }
   
-  LIST <- as.matrix(colnames(x))
+  LIST <- as.matrix(colnames(Exp))
   
   mark <- Sys.time()
-  foo <- t( parApply(cl, as.matrix( LIST[1:dim(LIST)[1],] ), 1, RUNNe, x) )
+  foo <- t( parApply(cl, as.matrix( LIST[1:dim(LIST)[1],] ), 1, RUNNe, Exp) )
   Sys.time()-mark
   
   row.names( foo ) <-  foo[,1]
@@ -169,15 +159,18 @@ for( Tissue in config$tissue ){
 
   
   #Push to Synapse
-  
-  # Store Matrix
+  ## Store Matrix
   ENRICH_OBJ <-  syn_temp$store( synapseclient$File( path=paste0(Tissue,"_PartialCorMatrix.tsv"), name = paste0(Tissue, ' Pairwise Partial correlation Matrix'), parentId=CODE$properties$id ), used = Syns_Used, activityName = activityName, executed = thisFile, activityDescription = activityDescription)
+  
   all.annotations$dataSubType = 'PartialCorrelationsForADTargetRank'
+  all.annotations$tissueTypeAbrv	= Tissue
   syn_temp$setAnnotations(ENRICH_OBJ, annotations = all.annotations)
-  # Store Tables
+  ## Store Tables
   ENRICH_OBJ <-  syn_temp$store( synapseclient$File( path=paste0(Tissue,"_PartialCorTable.tsv"), name = paste0(Tissue, ' Pairwise Partial correlation Table'), parentId=CODE$properties$id ), used = Syns_Used, activityName = activityName, executed = thisFile, activityDescription = activityDescription)
   all.annotations$dataSubType = 'PartialCorrelationsForADTargetRank'
+  all.annotations$tissueTypeAbrv	= Tissue
   syn_temp$setAnnotations(ENRICH_OBJ, annotations = all.annotations)
+
 } 
 
 stopCluster(cl)

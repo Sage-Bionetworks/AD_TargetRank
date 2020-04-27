@@ -1,5 +1,7 @@
 pvbsrBootstrap = function(y,x,nsamp=100,cores=8){
   library(dplyr)
+  library(parallel)
+  library(doParallel)
   n <- length(y)
   replicateMatrix = sample(1:(n*nsamp),replace=TRUE) %>%
     matrix(n,nsamp)

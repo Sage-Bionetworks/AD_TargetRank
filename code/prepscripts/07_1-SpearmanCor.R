@@ -2,6 +2,7 @@ library(parallel)
 library(doParallel)
 library(data.table)
 reticulate::use_python("/usr/bin/python", required = TRUE)
+#reticulate::use_python("../miniconda2/bin/python", required = TRUE)
 synapseclient <- reticulate::import("synapseclient")
 syn_temp <- synapseclient$Synapse()
 syn_temp$login()
@@ -18,9 +19,8 @@ names( ExpressionDS ) <- c('CBE', 'DLPFC', 'FP', 'IFG', 'PHG', 'STG', 'TCX')
 Study <- c( 'RosMap', 'Mayo', 'Mayo', 'MSBB', 'MSBB', 'MSBB', 'MSBB')
 names(Study) <- c('DLPFC', 'TCX', 'CBE', 'FP', 'IFG', 'PHG', 'STG')
 
-
 for( Tissue in c('CBE', 'DLPFC', 'FP', 'IFG', 'PHG', 'STG', 'TCX') ){
-  
+  #Tissue<-'DLPFC'
   Syns_Used <- NULL
   
   #Load expression for tissue
@@ -65,15 +65,15 @@ for( Tissue in c('CBE', 'DLPFC', 'FP', 'IFG', 'PHG', 'STG', 'TCX') ){
           )
   }
   
-  mark <- Sys.time()
+  #mark <- Sys.time()
   LIST <- combn(1:length(colnames(x)),2)
-  Sys.time()-mark
+  #Sys.time()-mark
   
   rm(foo)
   rm(Exp)
   rm(exp)
   
-  cl <- makeCluster(detectCores()-2)
+  cl <- makeCluster(detectCores()-12)
   registerDoParallel(cl)
   #mark <- Sys.time()
   foo <- t(parApply(cl,LIST,2,RUNNEr,x))

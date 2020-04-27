@@ -11,7 +11,7 @@ library(yaml)
 args <- commandArgs(trailingOnly=TRUE)
 
 #READ IN Config
-#configuration<-'configs/M62.yaml'
+#configuration<-'configs/EmoryTargets.yaml'
 configuration <- args[1]
 config <- read_yaml(configuration)
 
