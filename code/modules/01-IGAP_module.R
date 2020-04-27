@@ -88,8 +88,9 @@ row.names(Tab) <- Tab$ENSG
 TotalIGAP$LogP <- -log(TotalIGAP$Pvalue)
 
 #Replace Infinite values with max + one
-TotalIGAP[ TotalIGAP$LogP == Inf, ]$LogP <- max(TotalIGAP$LogP[TotalIGAP$LogP!=Inf]+1)
-
+if( Inf %in% TotalIGAP$LogP ){
+  TotalIGAP[ TotalIGAP$LogP == Inf, ]$LogP <- max(TotalIGAP$LogP[TotalIGAP$LogP!=Inf]+1)
+}else{}
 p <- ggplot(TotalIGAP, aes(x=GeneName, y=LogP)) + 
   geom_violin( ) + geom_boxplot(width=0.1, outlier.shape=NA) +
   geom_jitter(shape=16, size=.1, position=position_jitter(0.2)) +
@@ -104,11 +105,17 @@ ggplot(TotalIGAP, aes(x=GeneName, y=LogP)) +
   theme(axis.text.x = element_text(angle = 45) ) + ylab('-Log(P-Value)') 
 dev.off()
 
-#Replace Infinite values with max + one
-FOO[ FOO$Pvalue == Inf,]$Pvalue <- max(FOO$Pvalue[FOO$Pvalue!=Inf]+1)
 
 IGAP$Rank<-rank(-IGAP$Pvalue)
 FOO<-IGAP
+
+#Replace Infinite values with max + one
+if( Inf %in% FOO$Pvalue ){
+  FOO[ FOO$Pvalue == Inf,]$Pvalue <- max(FOO$Pvalue[FOO$Pvalue!=Inf]+1)
+}else{
+  
+}
+
 FOO$Pvalue <- -log(FOO$Pvalue)
 #Replace Infinite values with max + one and zero vals w/ min/100
 FOO[ FOO$Pvalue == Inf,]$Pvalue <- max(FOO$Pvalue[FOO$Pvalue!=Inf]+1)
@@ -130,6 +137,7 @@ dev.off()
 FOO$Rank<-rank(FOO$Pvalue)
 FOO$RankModel <- (FOO$Rank/dim(FOO)[1])
 mylogit <- glm(RankModel ~ Pvalue, data = FOO, family = "binomial")
+family = quasibinomial(link = 'logit')
 #FOO$RankModel
 
 LogisticScorer <- function( X ){
@@ -170,7 +178,7 @@ BestScoreIGAP$LogP <- -log(BestScoreIGAP$Pvalue)
 Py <- ggplot( BestScoreIGAP, aes(x=LogP, y=Wts, col=GeneName)) +
   geom_point() + xlab("-log(P-Value)") + ylab("IGAP Weight") + 
   geom_smooth( data=Total, aes(x=Pvalue, y=y, col=Type), method = "glm", method.args = list(family = quasibinomial(link = 'logit')), colour="black", size=0.5, se = FALSE) + 
-  geom_label_repel(aes(label = GeneName), box.padding = 0.35, point.padding = 0.5, segment.color = 'grey50') 
+  geom_label_repel(aes(label = GeneName), box.padding = 0.35, point.padding = 0.5, segment.color = 'grey50') + theme(legend.position = "none")
 
 #Py
 setEPS()

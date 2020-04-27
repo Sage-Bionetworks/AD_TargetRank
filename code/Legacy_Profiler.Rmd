@@ -493,9 +493,6 @@ DE_Plots <- function( INPUT ){
     }
   }
  
-  
-  
-  
   return( DF %>% 
     mutate(
       CBE = cell_spec( CBE, bold = ifelse(pDF$CBE < 0.05, TRUE, FALSE ), color = ifelse(pDF$CBE < 0.05, ifelse(DF$CB < 0, "red", "green"), rgb(211/255,211/255,211/255)) ) ,
