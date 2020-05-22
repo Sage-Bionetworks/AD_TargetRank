@@ -1182,11 +1182,11 @@ ENRICH_OBJ <-  syn_temp$store( synapseclient$File( path='MSSM_FP_STG_PHG_IFG_Dif
   all.annotations$dataSubType = 'diffExp'
   syn_temp$setAnnotations(ENRICH_OBJ, annotations = all.annotations)
   
-#_#stopCluster(cl)
+stopCluster(cl)
 ```
 
 ```{r DelFiles, echo=T, results='hide'}
-#system('rm *.tsv')
+system('rm *.tsv')
 ```
 ### R Source Code
 [Github](`r thisFile`)
