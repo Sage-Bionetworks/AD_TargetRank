@@ -421,8 +421,6 @@ Processing `r dim(PROCESSED_COUNTS$filteredExprMatrix)[1]` genes in `r dim(PROCE
 
 Based on the expression pattern following samples were tagged as outliers: `r paste(indToRemove, collapse = ', ')`
 
-Distribution of samples are: `r kable(tmp)`
-
 #### Gene outliers
 Assign NA values to genes that are above and below 3 std deviation of its distribution
 ```{r winsorise.data}
@@ -1199,7 +1197,7 @@ syn_temp$login()
 setwd("~/AD_TargetRank/code/")
 source("~/AD_TargetRank/utilityFunctions/knitfile2synapseClient.R")
 source("~/AD_TargetRank/utilityFunctions/hook_synapseMdSyntax_plot.R")
-createAndKnitToFolderEntityClient(file = "MSBB_TranscriptNorm.Rmd",
+createAndKnitToFolderEntityClient(file = "~/AD_TargetRank/code/prepscripts/MSBB_TranscriptNorm.Rmd",
                                           parentId ="syn22092490",
                                           folderName = 'MSBB')
 ```
