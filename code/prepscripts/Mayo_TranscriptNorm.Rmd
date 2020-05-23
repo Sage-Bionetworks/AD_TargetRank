@@ -45,9 +45,9 @@ registerDoParallel(cl)
 options(xtable.type="html")
 setwd('~/AD_TargetRank/code/')
 # Source modified utility functions from limma and sva package
-source('../../utilityFunctions/parallelDuplicateCorrelation.R')
-source('../../utilityFunctions/irwsva.build.R')
-source('../../utilityFunctions/f.pvalue.R')
+source('~/AD_TargetRank/utilityFunctions/parallelDuplicateCorrelation.R')
+source('~/AD_TargetRank/utilityFunctions/irwsva.build.R')
+source('~/AD_TargetRank/utilityFunctions/f.pvalue.R')
 knitr::opts_chunk$set(
   echo=FALSE,
   warning=FALSE,
