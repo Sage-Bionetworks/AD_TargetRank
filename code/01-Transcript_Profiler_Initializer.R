@@ -130,7 +130,7 @@ thisRepo <- githubr::getRepo(repository = "Sage-Bionetworks/AD_TargetRank", ref=
 thisFile <- githubr::getPermlink( repository = thisRepo, repositoryPath=paste0( 'code/',thisFileName ))
 thisFile2 <- githubr::getPermlink( repository = thisRepo, repositoryPath=paste0( 'code/',thisFileName2 ))
 
-Syns_used <- c("syn22092611", "syn22093747", "syn22097286", "syn22092607", "syn22093746", "syn22097285", "syn22092576", "syn22093739", "syn22097275")
+Syns_Used <- c("syn22092611", "syn22093747", "syn22097286", "syn22092607", "syn22093746", "syn22097285", "syn22092576", "syn22093739", "syn22097275")
 CODE <- syn_temp$store(synapseclient$Folder(name = config$runname, parentId = parentId))
 
 for( name in genes ){
@@ -144,4 +144,17 @@ for( name in genes ){
   system( paste0( 'rm ~/AD_TargetRank/code/03-', name, '.Rmd' ) )
   system( paste0( 'rm -r ~/AD_TargetRank/Transcript_Profiles/Initial_49_Targets/03-', name, '_files/' ) )
   
+  reticulate::use_python("/usr/bin/python", required = TRUE)
+  synapseclient <- reticulate::import("synapseclient")
+  syn_temp <- synapseclient$Synapse()
+  syn_temp$login()
+  
+  ENRICH_OBJ <- syn_temp$store( synapseclient$File( path= paste0( '~/AD_TargetRank/Transcript_Profiles/', config$runname,'/03-', name,'.pdf'), name = paste0( 'Transcript analysis for ', name ), 
+                                                     parentId=CODE$properties$id ), 
+                                                     used = Syns_Used,
+                                                     activityName = activityName, 
+                                                     executed = c(thisFile,thisFile2),
+                                                     activityDescription = activityDescription)
 }
+
+

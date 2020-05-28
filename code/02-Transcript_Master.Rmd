@@ -49,7 +49,7 @@ syn_temp <- synapseclient$Synapse()
 syn_temp$login()
 
 Gene <- "GENEX"
-#Gene <- "GFAP"
+#Gene <- "CTHRC1"
 
 #DE Results
 MSBB_DE <- as.data.frame( read.table( '~/AD_TargetRank/Transcript_Profiles/Temp_Files/MSBB_DE.tsv', header= T, sep ='\t', stringsAsFactors = F  )) 
@@ -97,38 +97,44 @@ Log_Plot <- function( data, tiss, comp, model, adj){
   #'@adj multicomps adjustment val eg Rosmap_Adj
   
   eval(parse(text=paste0( 'pDat <- data[ data$Comparison == \'', comp,'\' & data$Model == \'', model,'\' & data$ensembl_gene_id %in% Keepers & data$Tissue == \'', tiss ,'\', ]' )))
-  pDat$adj.P.Val <- p.adjust( pDat$P.Value, method = 'fdr', n=adj )
-  pDat$Direction[pDat$adj.P.Val <= 0.05 & pDat$logFC <= -log2(1.2)] = 'DOWN'
-  pDat$Direction[pDat$adj.P.Val <= 0.05 & pDat$logFC >= log2(1.2)] = 'UP'
-  
-  
-  # Create a text
-  #grob <- grobTree(textGrob(paste0(tiss,': ',Gene), x=0.98,  y=1, hjust=0,
-  #gp=gpar(col="black", fontsize=13, fontface="bold")))
-  
-  if( (tiss %in% c('DLPFC','TCX','PHG')) == T){
-    plot <- ggplot(  pDat   , aes(x=logFC, y=ensembl_gene_id , colour=Direction)) +
-      scale_y_discrete() + 
-      scale_color_manual(values=c("#000000", "#7F0000" , "#000099"), breaks =c("NONE", "UP" , "DOWN")) +
-      geom_errorbar(aes(xmin=CI.L, xmax=CI.R), width=.1) +
-      geom_line() +
-      geom_point() +
-      #annotation_custom(grob) 
-      ggtitle(paste0(tiss,': ',Gene)) + theme(legend.position = "none") + theme(axis.title.y = element_blank()) +
-      theme(axis.text.y = element_text(face="bold", size=6, angle=45)) +
-      geom_vline(xintercept = 0, linetype="dotted", color = "black", size=1.5)
+  if( dim(pDat)[1] > 0 ){
+    pDat$adj.P.Val <- p.adjust( pDat$P.Value, method = 'fdr', n=adj )
+    pDat$Direction[pDat$adj.P.Val <= 0.05 & pDat$logFC <= -log2(1.2)] = 'DOWN'
+    pDat$Direction[pDat$adj.P.Val <= 0.05 & pDat$logFC >= log2(1.2)] = 'UP'
+    
+    
+    # Create a text
+    #grob <- grobTree(textGrob(paste0(tiss,': ',Gene), x=0.98,  y=1, hjust=0,
+    #gp=gpar(col="black", fontsize=13, fontface="bold")))
+    
+    if( (tiss %in% c('DLPFC','TCX','PHG')) == T){
+      plot <- ggplot(  pDat   , aes(x=logFC, y=ensembl_gene_id , colour=Direction)) +
+        scale_y_discrete() + 
+        scale_color_manual(values=c("#000000", "#7F0000" , "#000099"), breaks =c("NONE", "UP" , "DOWN")) +
+        geom_errorbar(aes(xmin=CI.L, xmax=CI.R), width=.1) +
+        geom_line() +
+        geom_point() +
+        #annotation_custom(grob) 
+        ggtitle(paste0(tiss,': ',Gene)) + theme(legend.position = "none") + theme(axis.title.y = element_blank()) +
+        theme(axis.text.y = element_text(face="bold", size=6, angle=45)) +
+        geom_vline(xintercept = 0, linetype="dotted", color = "black", size=1.5)
+    }else{
+       plot <- ggplot(  pDat   , aes(x=logFC, y=ensembl_gene_id , colour=Direction)) +
+        scale_y_discrete() + 
+        scale_color_manual(values=c("#000000", "#7F0000" , "#000099"), breaks =c("NONE", "UP" , "DOWN")) +
+        geom_errorbar(aes(xmin=CI.L, xmax=CI.R), width=.1) +
+        geom_line() +
+        geom_point() +
+        #annotation_custom(grob) 
+        ggtitle(paste0(tiss,': ',Gene)) + theme(legend.position = "none") + 
+        theme(axis.title.y = element_blank(), axis.text.y = element_blank()) +
+        geom_vline(xintercept = 0, linetype="dotted", color = "black", size=1.5)
+       
+        
+    } 
   }else{
-     plot <- ggplot(  pDat   , aes(x=logFC, y=ensembl_gene_id , colour=Direction)) +
-      scale_y_discrete() + 
-      scale_color_manual(values=c("#000000", "#7F0000" , "#000099"), breaks =c("NONE", "UP" , "DOWN")) +
-      geom_errorbar(aes(xmin=CI.L, xmax=CI.R), width=.1) +
-      geom_line() +
-      geom_point() +
-      #annotation_custom(grob) 
-      ggtitle(paste0(tiss,': ',Gene)) + theme(legend.position = "none") + 
-      theme(axis.title.y = element_blank(), axis.text.y = element_blank()) +
-      geom_vline(xintercept = 0, linetype="dotted", color = "black", size=1.5)
-  } 
+    plot <- NULL
+  }
   return(plot)
 }
 
@@ -139,6 +145,14 @@ PHG <- Log_Plot( MSBB_DE, 'PHG', 'AD-CONTROL', 'Diagnosis', MSBB_Adj  )
 IFG <- Log_Plot( MSBB_DE, 'IFG', 'AD-CONTROL', 'Diagnosis', MSBB_Adj  )
 FP <- Log_Plot( MSBB_DE, 'FP', 'AD-CONTROL', 'Diagnosis', MSBB_Adj  )
 STG <- Log_Plot( MSBB_DE, 'STG', 'AD-CONTROL', 'Diagnosis', MSBB_Adj  )
+
+LIST <- NULL
+for( test in c('DLPFC','TCX','CBE','PHG','IFG','FP','STG') ){
+  if( eval(parse(text= paste0( 'is.null(', test, ')' ))) == TRUE ){
+  }else{
+    LIST <- c(LIST, test)
+  }
+}
 ```
 
 ### Log2 Fold Change of Transcripts By Brain Region Case V. Control
@@ -147,7 +161,13 @@ AD = CDR >= 1 & BRAAK >= 4 & CERAD >= 2 \newline
 CONTROL = CDR <= 0.5 & BRAAK <= 3 & CERAD <= 1 \newline
 
 ```{r PlotLog, cache = FALSE, fig.height = 5, fig.width = 14}
-grid.arrange(DLPFC, TCX, CBE, PHG, IFG, FP, STG,  ncol=7)
+N<-length(LIST) 
+if(length(LIST) == 0 ){
+  
+}else{
+  PLOTS <- paste0(LIST, collapse=',')
+  eval(parse(text= paste0( 'grid.arrange(', PLOTS , ', ncol=', N, ' )' )))
+}
 ```
 
 ```{r pagebreak, results='asis', eval=is_latex_output()}
@@ -169,24 +189,27 @@ BoxPloter <- function( EXP, Cov, Tiss ){
   #'@Tiss The target tissue to plot eg. DLPFC
   
   temp <- as.data.frame( EXP[ row.names( EXP )[ row.names( EXP ) %in% Keepers], ] )
-  temp$Transcript <- row.names(temp)
-  
-  Cov <- Cov[ as.character(Cov$Tissue) == Tiss, ]
-  
-  foo <- reshape2::melt( t(temp), id="Transcript" )
-  Cov <- as.data.frame(Cov)
-  row.names(Cov) <- Cov$SampleID
-  foo$Diagnosis <- Cov[ as.character(foo$Var1), ]$Diagnosis
-  foo$value <- as.numeric(as.character(foo$value))
-  
-  foo <- foo[ (foo$Diagnosis %in% c('AD', 'CONTROL', 'OTHER'))==T, ]
-  
-  plot <- ggplot(data = foo, aes(x=Var2, y=value)) + 
-    geom_violin(  ) + geom_boxplot( width=0.1, outlier.shape = NA) +  theme(legend.position = "none") +
-    geom_jitter(aes(col=Diagnosis), alpha = .4, size=.2) + # geom_jitter() +
-    theme(axis.text.x = element_text(face="bold", size=6, angle=45)) + ggtitle(paste0(Tiss,': ',Gene)) +
-    theme(axis.title.y = element_blank(), axis.title.x = element_blank(), legend.position = "none" )
-  
+  if( dim(temp)[1] == 0 ){
+    plot <- NULL
+  }else{
+    temp$Transcript <- row.names(temp)
+    
+    Cov <- Cov[ as.character(Cov$Tissue) == Tiss, ]
+    
+    foo <- reshape2::melt( t(temp), id="Transcript" )
+    Cov <- as.data.frame(Cov)
+    row.names(Cov) <- Cov$SampleID
+    foo$Diagnosis <- Cov[ as.character(foo$Var1), ]$Diagnosis
+    foo$value <- as.numeric(as.character(foo$value))
+    
+    foo <- foo[ (foo$Diagnosis %in% c('AD', 'CONTROL', 'OTHER'))==T, ]
+    
+    plot <- ggplot(data = foo, aes(x=Var2, y=value)) + 
+      geom_violin(  ) + geom_boxplot( width=0.1, outlier.shape = NA) +  theme(legend.position = "none") +
+      geom_jitter(aes(col=Diagnosis), alpha = .4, size=.2) + # geom_jitter() +
+      theme(axis.text.x = element_text(face="bold", size=6, angle=45)) + ggtitle(paste0(Tiss,': ',Gene)) +
+      theme(axis.title.y = element_blank(), axis.title.x = element_blank(), legend.position = "none" )
+  }
   return( plot )
 }
 
@@ -205,8 +228,30 @@ IFG <- BoxPloter( MSBB_EXP, MSBB_Cov, 'IFG' )
 PHG <- BoxPloter( MSBB_EXP, MSBB_Cov, 'PHG' )
 FP <- BoxPloter( MSBB_EXP, MSBB_Cov, 'FP' )
 STG <- BoxPloter( MSBB_EXP, MSBB_Cov, 'STG' )
+
+LIST <- NULL
+for( test in c('DLPFC','TCX','CBE','PHG','IFG','FP','STG') ){
+  if( eval(parse(text= paste0( 'is.null(', test, ')' ))) == TRUE ){
+  }else{
+    LIST <- c(LIST, test)
+  }
+}
+
 ```
 
 ```{r PlotLog2, cache = FALSE, fig.height = 8, fig.width = 14}
-grid.arrange(DLPFC, TCX, CBE, PHG, IFG, FP, STG,ncol=4, nrow=2)
+N<-length(LIST) 
+if(length(LIST) == 0 ){
+  
+}else{
+  if(length(LIST) > 4 ){
+    PLOTS <- paste0(LIST, collapse=',')
+    eval(parse(text= paste0( 'grid.arrange(', PLOTS , ', ncol=4, nrow=2 )' )))
+  }else{
+    PLOTS <- paste0(LIST, collapse=',')
+    eval(parse(text= paste0( 'grid.arrange(', PLOTS , ', ncol=4, nrow=1 )' )))
+  }
+}
+
+#grid.arrange(DLPFC, TCX, CBE, PHG, IFG, FP, STG,ncol=4, nrow=2)
 ```
