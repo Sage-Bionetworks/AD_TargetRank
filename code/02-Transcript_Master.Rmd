@@ -1,0 +1,212 @@
+---
+title: "GENEX: Transcript Report"
+author: "Jake Gockley"
+date: "05/28/2020"
+header-includes:
+  - \usepackage{multicol}
+  - \newcommand{\btwocol}{\begin{multicols}{2}}
+  - \newcommand{\etwocol}{\end{multicols}}
+  - \usepackage{lscape}
+  - \newcommand{\blandscape}{\begin{landscape}}
+  - \newcommand{\elandscape}{\end{landscape}}
+output:
+  pdf_document: default
+  html_document: default
+classoption: landscape
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = F)
+library(readr)
+library(biomaRt)
+library(knitr)
+library(kableExtra)
+library(tidyverse)
+library(grid)
+library(dplyr)
+library(ggplot2)
+library(ggrepel)
+library(gridExtra)
+library(yaml)
+knitr::opts_chunk$set(
+  #root.dir = '/home/jgockley/AD_TargetRank/',
+  echo=FALSE,
+  warning=FALSE,
+  message=FALSE,
+  error = FALSE,
+  tidy = FALSE,
+  cache = TRUE)
+
+#webshot::install_phantomjs()
+```
+
+```{r import, eval = T, include=F }
+reticulate::use_python("/usr/bin/python", required = TRUE)
+synapseclient <- reticulate::import("synapseclient")
+syn_temp <- synapseclient$Synapse()
+syn_temp$login()
+
+Gene <- "GENEX"
+#Gene <- "GFAP"
+
+#DE Results
+MSBB_DE <- as.data.frame( read.table( '~/AD_TargetRank/Transcript_Profiles/Temp_Files/MSBB_DE.tsv', header= T, sep ='\t', stringsAsFactors = F  )) 
+Mayo_DE <- as.data.frame( read.table( '~/AD_TargetRank/Transcript_Profiles/Temp_Files/Mayo_DE.tsv', header= T, sep ='\t', stringsAsFactors = F ) )
+Rosmap_DE <- as.data.frame( read.table( '~/AD_TargetRank/Transcript_Profiles/Temp_Files/RosMap_DE.tsv', header= T, sep ='\t', stringsAsFactors = F ) )
+
+#Normalized Expression
+MSBB_EXP <- read.table( '~/AD_TargetRank/Transcript_Profiles/Temp_Files/MSBB_Exp.tsv', header= T, sep ='\t' )
+colnames( MSBB_EXP ) <- gsub( 'X', '', colnames( MSBB_EXP ) )
+
+Mayo_EXP <- read.table( '~/AD_TargetRank/Transcript_Profiles/Temp_Files/Mayo_Exp.tsv', header= T, sep ='\t' )
+colnames( Mayo_EXP ) <- gsub( 'X', '', colnames( Mayo_EXP ) )
+colnames( Mayo_EXP ) <- gsub( '_TC', '_TCX', colnames( Mayo_EXP ) )
+
+Rosmap_EXP <- read.table( '~/AD_TargetRank/Transcript_Profiles/Temp_Files/RosMap_Exp.tsv', header= T, sep ='\t' )
+colnames( Rosmap_EXP ) <- gsub( 'X', '', colnames( Rosmap_EXP ) )
+
+#Covariates
+MSBB_Cov <- data.table::fread( syn_temp$get('syn22092576')$path )
+row.names(MSBB_Cov) <- MSBB_Cov$SampleID
+Mayo_Cov <- data.table::fread( syn_temp$get('syn22093739')$path )
+row.names(Mayo_Cov) <- Mayo_Cov$SampleID
+Rosmap_Cov <- data.table::fread( syn_temp$get('syn22097275')$path )
+row.names(Rosmap_Cov) <- Rosmap_Cov$SampleID
+
+Trans <- read.table( '~/AD_TargetRank/Transcript_Profiles/Temp_Files/Translate.tsv', header= T, sep ='\t', stringsAsFactors = F )
+
+#Adjust the P-Value for total Transcripts tested:
+Rosmap_Adj <- as.numeric(table(Trans$ensembl_transcript_id %in% row.names(Rosmap_EXP))[2])
+MSBB_Adj <- as.numeric(table(Trans$ensembl_transcript_id %in% row.names(MSBB_EXP))[2])
+Mayo_Adj <- as.numeric(table(Trans$ensembl_transcript_id %in% row.names(Mayo_EXP))[2])
+colnames(Mayo_DE)[ colnames(Mayo_DE) == 'Tissue.ref'] <- 'Tissue'
+
+Colors <- c( "black", "red4", "navyblue" )
+names(Colors) <- c( "NONE", "UP", "DOWN" )
+
+#Plot Log2FC's
+Keepers <- Trans[ Trans$hgnc_symbol == Gene,]$ensembl_transcript_id
+
+Log_Plot <- function( data, tiss, comp, model, adj){
+  #'@data data frame eg Rosmap_DE
+  #'@tiss the tissue to use eg DLPFC
+  #'@comp the comparison to use eg AD-CONTROL
+  #'@model the model to use eg Diagnosis.Sex
+  #'@adj multicomps adjustment val eg Rosmap_Adj
+  
+  eval(parse(text=paste0( 'pDat <- data[ data$Comparison == \'', comp,'\' & data$Model == \'', model,'\' & data$ensembl_gene_id %in% Keepers & data$Tissue == \'', tiss ,'\', ]' )))
+  pDat$adj.P.Val <- p.adjust( pDat$P.Value, method = 'fdr', n=adj )
+  pDat$Direction[pDat$adj.P.Val <= 0.05 & pDat$logFC <= -log2(1.2)] = 'DOWN'
+  pDat$Direction[pDat$adj.P.Val <= 0.05 & pDat$logFC >= log2(1.2)] = 'UP'
+  
+  
+  # Create a text
+  #grob <- grobTree(textGrob(paste0(tiss,': ',Gene), x=0.98,  y=1, hjust=0,
+  #gp=gpar(col="black", fontsize=13, fontface="bold")))
+  
+  if( (tiss %in% c('DLPFC','TCX','PHG')) == T){
+    plot <- ggplot(  pDat   , aes(x=logFC, y=ensembl_gene_id , colour=Direction)) +
+      scale_y_discrete() + 
+      scale_color_manual(values=c("#000000", "#7F0000" , "#000099"), breaks =c("NONE", "UP" , "DOWN")) +
+      geom_errorbar(aes(xmin=CI.L, xmax=CI.R), width=.1) +
+      geom_line() +
+      geom_point() +
+      #annotation_custom(grob) 
+      ggtitle(paste0(tiss,': ',Gene)) + theme(legend.position = "none") + theme(axis.title.y = element_blank()) +
+      theme(axis.text.y = element_text(face="bold", size=6, angle=45)) +
+      geom_vline(xintercept = 0, linetype="dotted", color = "black", size=1.5)
+  }else{
+     plot <- ggplot(  pDat   , aes(x=logFC, y=ensembl_gene_id , colour=Direction)) +
+      scale_y_discrete() + 
+      scale_color_manual(values=c("#000000", "#7F0000" , "#000099"), breaks =c("NONE", "UP" , "DOWN")) +
+      geom_errorbar(aes(xmin=CI.L, xmax=CI.R), width=.1) +
+      geom_line() +
+      geom_point() +
+      #annotation_custom(grob) 
+      ggtitle(paste0(tiss,': ',Gene)) + theme(legend.position = "none") + 
+      theme(axis.title.y = element_blank(), axis.text.y = element_blank()) +
+      geom_vline(xintercept = 0, linetype="dotted", color = "black", size=1.5)
+  } 
+  return(plot)
+}
+
+DLPFC <- Log_Plot( Rosmap_DE, 'DLPFC', 'AD-CONTROL', 'Diagnosis.Sex', Rosmap_Adj )
+TCX <- Log_Plot( Mayo_DE, 'TCX', 'AD-CONTROL', 'Diagnosis', Mayo_Adj  )
+CBE <- Log_Plot( Mayo_DE, 'CBE', 'AD-CONTROL', 'Diagnosis', Mayo_Adj  )
+PHG <- Log_Plot( MSBB_DE, 'PHG', 'AD-CONTROL', 'Diagnosis', MSBB_Adj  )
+IFG <- Log_Plot( MSBB_DE, 'IFG', 'AD-CONTROL', 'Diagnosis', MSBB_Adj  )
+FP <- Log_Plot( MSBB_DE, 'FP', 'AD-CONTROL', 'Diagnosis', MSBB_Adj  )
+STG <- Log_Plot( MSBB_DE, 'STG', 'AD-CONTROL', 'Diagnosis', MSBB_Adj  )
+```
+
+### Log2 Fold Change of Transcripts By Brain Region Case V. Control
+Red indicates over expressed and Blue indicates under expressed in cases versus Controls \newline
+AD = CDR >= 1 & BRAAK >= 4 & CERAD >= 2 \newline
+CONTROL = CDR <= 0.5 & BRAAK <= 3 & CERAD <= 1 \newline
+
+```{r PlotLog, cache = FALSE, fig.height = 5, fig.width = 14}
+grid.arrange(DLPFC, TCX, CBE, PHG, IFG, FP, STG,  ncol=7)
+```
+
+```{r pagebreak, results='asis', eval=is_latex_output()}
+cat('\\pagebreak')
+```
+
+### Transcript Expression Level Boxplot Case V. Control
+Red indicates over expressed and Blue indicates under expressed in cases versus Controls \newline
+AD = CDR >= 1 & BRAAK >= 4 & CERAD >= 2 - Red \newline
+CONTROL = CDR <= 0.5 & BRAAK <= 3 & CERAD <= 1 - Blue \newline
+Other - Green
+
+```{r formatBoxPlot, eval = T, include=F }
+Rosmap_Cov$Tissue <- 'DLPFC'
+
+BoxPloter <- function( EXP, Cov, Tiss ){
+  #'@EXP the expression dataset to plot eg Rosmap_EXP
+  #'@Cov the covariate data frame eg Rosmap_Cov
+  #'@Tiss The target tissue to plot eg. DLPFC
+  
+  temp <- as.data.frame( EXP[ row.names( EXP )[ row.names( EXP ) %in% Keepers], ] )
+  temp$Transcript <- row.names(temp)
+  
+  Cov <- Cov[ as.character(Cov$Tissue) == Tiss, ]
+  
+  foo <- reshape2::melt( t(temp), id="Transcript" )
+  Cov <- as.data.frame(Cov)
+  row.names(Cov) <- Cov$SampleID
+  foo$Diagnosis <- Cov[ as.character(foo$Var1), ]$Diagnosis
+  foo$value <- as.numeric(as.character(foo$value))
+  
+  foo <- foo[ (foo$Diagnosis %in% c('AD', 'CONTROL', 'OTHER'))==T, ]
+  
+  plot <- ggplot(data = foo, aes(x=Var2, y=value)) + 
+    geom_violin(  ) + geom_boxplot( width=0.1, outlier.shape = NA) +  theme(legend.position = "none") +
+    geom_jitter(aes(col=Diagnosis), alpha = .4, size=.2) + # geom_jitter() +
+    theme(axis.text.x = element_text(face="bold", size=6, angle=45)) + ggtitle(paste0(Tiss,': ',Gene)) +
+    theme(axis.title.y = element_blank(), axis.title.x = element_blank(), legend.position = "none" )
+  
+  return( plot )
+}
+
+DLPFC <- BoxPloter( Rosmap_EXP, Rosmap_Cov, 'DLPFC' )
+
+Mayo_Cov$Diagnosis <- do.call(rbind, strsplit( Mayo_Cov$Tissue.Diagnosis, '[.]' ))[,2]
+Mayo_Cov$Tissue <- do.call(rbind, strsplit( Mayo_Cov$Tissue.SourceDiagnosis, '[.]' ))[,1]
+
+TCX <- BoxPloter( Mayo_EXP, Mayo_Cov, 'TCX' )
+CBE <- BoxPloter( Mayo_EXP, Mayo_Cov, 'CBE' )
+
+MSBB_Cov$Diagnosis <- do.call(rbind, strsplit( MSBB_Cov$Tissue.Diagnosis, '[.]' ))[,2]
+MSBB_Cov$Tissue <- do.call(rbind, strsplit( MSBB_Cov$Tissue.Diagnosis, '[.]' ))[,1]
+
+IFG <- BoxPloter( MSBB_EXP, MSBB_Cov, 'IFG' )
+PHG <- BoxPloter( MSBB_EXP, MSBB_Cov, 'PHG' )
+FP <- BoxPloter( MSBB_EXP, MSBB_Cov, 'FP' )
+STG <- BoxPloter( MSBB_EXP, MSBB_Cov, 'STG' )
+```
+
+```{r PlotLog2, cache = FALSE, fig.height = 8, fig.width = 14}
+grid.arrange(DLPFC, TCX, CBE, PHG, IFG, FP, STG,ncol=4, nrow=2)
+```
