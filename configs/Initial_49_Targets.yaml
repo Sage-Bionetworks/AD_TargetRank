@@ -1,0 +1,10 @@
+name: configs/Initial_49_Targets.yaml
+runname: Initial_49_Targets
+parentID: syn22097878
+
+genelistfile: ~/AD_TargetRank/Genes.txt
+genelisttype: GNAME
+
+filedir: ~/AD_TargetRank
+outs: runs/figures
+

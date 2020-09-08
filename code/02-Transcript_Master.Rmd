@@ -30,6 +30,7 @@ library(ggplot2)
 library(ggrepel)
 library(gridExtra)
 library(yaml)
+library(MASS)
 knitr::opts_chunk$set(
   #root.dir = '/home/jgockley/AD_TargetRank/',
   echo=FALSE,
@@ -50,6 +51,8 @@ syn_temp$login()
 
 Gene <- "GENEX"
 #Gene <- "CTHRC1"
+#Gene <- "GFAP"
+#Gene <- 'C4B'
 
 #DE Results
 MSBB_DE <- as.data.frame( read.table( '~/AD_TargetRank/Transcript_Profiles/Temp_Files/MSBB_DE.tsv', header= T, sep ='\t', stringsAsFactors = F  )) 
@@ -157,8 +160,8 @@ for( test in c('DLPFC','TCX','CBE','PHG','IFG','FP','STG') ){
 
 ### Log2 Fold Change of Transcripts By Brain Region Case V. Control
 Red indicates over expressed and Blue indicates under expressed in cases versus Controls \newline
-AD = CDR >= 1 & BRAAK >= 4 & CERAD >= 2 \newline
-CONTROL = CDR <= 0.5 & BRAAK <= 3 & CERAD <= 1 \newline
+AD = CDR >= 1 & Braak >= 4 & CERAD >= 2 \newline
+CONTROL = CDR <= 0.5 & Braak <= 3 & CERAD <= 1 \newline
 
 ```{r PlotLog, cache = FALSE, fig.height = 5, fig.width = 14}
 N<-length(LIST) 
@@ -174,10 +177,221 @@ if(length(LIST) == 0 ){
 cat('\\pagebreak')
 ```
 
-### Transcript Expression Level Boxplot Case V. Control
+### Log2 Fold Change of Transcripts By Cognitive Assesment
 Red indicates over expressed and Blue indicates under expressed in cases versus Controls \newline
-AD = CDR >= 1 & BRAAK >= 4 & CERAD >= 2 - Red \newline
-CONTROL = CDR <= 0.5 & BRAAK <= 3 & CERAD <= 1 - Blue \newline
+ROSMAP: Cogdx = 4 Versus CogDx = 1
+\begin{itemize}
+\item[] Cogdx = 4: AD: Alzheimer’s dementia and NO other cause of CI (NINCDS PROB AD)
+\item[] Cogdx = 1: NCI: No cognitive impairment (No impaired domains)
+\end{itemize}
+
+MSBB: CDR = 5 Versus CDR = 0
+\begin{itemize}
+\item[] CDR = 5: Severe cognitive decline
+\item[] CDR = 0: No cognitive decline
+\end{itemize}
+
+```{r Cognition, eval = T, include=F}
+DLPFC <- Log_Plot( Rosmap_DE, 'DLPFC', 'cogdx4-cogdx1', 'cogdx', Rosmap_Adj )
+
+PHG <- Log_Plot( MSBB_DE, 'PHG', 'CDR', 'SourceDiagnosis', MSBB_Adj  )
+IFG <- Log_Plot( MSBB_DE, 'IFG', 'CDR', 'SourceDiagnosis', MSBB_Adj  )
+FP <- Log_Plot( MSBB_DE, 'FP', 'CDR', 'SourceDiagnosis', MSBB_Adj  )
+STG <- Log_Plot( MSBB_DE, 'STG', 'CDR', 'SourceDiagnosis', MSBB_Adj  )
+
+LIST <- NULL
+for( test in c('DLPFC','PHG','IFG','FP','STG') ){
+  if( eval(parse(text= paste0( 'is.null(', test, ')' ))) == TRUE ){
+  }else{
+    LIST <- c(LIST, test)
+  }
+}
+```
+
+```{r PlotLogCog, cache = FALSE, fig.height = 5, fig.width = 14}
+N<-length(LIST) 
+if(length(LIST) == 0 ){
+  
+}else{
+  PLOTS <- paste0(LIST, collapse=',')
+  eval(parse(text= paste0( 'grid.arrange(', PLOTS , ', ncol=', N, ' )' )))
+}
+```
+
+```{r pagebreak2, results='asis', eval=is_latex_output()}
+cat('\\pagebreak')
+```
+
+### Neuropathology Associations
+All associations are logistic ordinal regression models preformed on Braak Score with P-Values correct to the total number of transcripts belonging to the user input gene list expressed in the respective tissue. \newline
+
+```{r WrangleNeuroPath, eval = T, include=F }
+MSBB_N   <- read.table( file = '~/AD_TargetRank/Transcript_Profiles/Temp_Files/MSBB_NeuroPath.tsv', header = T, sep = '\t', stringsAsFactors = F )
+row.names(MSBB_N) <- MSBB_N$sampleIdentifier 
+ROSMAP_N <- read.table( file = '~/AD_TargetRank/Transcript_Profiles/Temp_Files/Rosmap_NeuroPath.tsv', header = T, sep = '\t', stringsAsFactors = F )
+row.names(ROSMAP_N) <- ROSMAP_N$Sampleid 
+Mayo_N   <- read.table( file = '~/AD_TargetRank/Transcript_Profiles/Temp_Files/Mayo_NeuroPath.tsv', header = T, sep = '\t', stringsAsFactors = F )
+row.names(Mayo_N) <- Mayo_N$SampleID
+
+MSBB_Braak <- MSBB_N[ , c( "sampleIdentifier", "Tissue1", "bbscore") ]
+colnames(MSBB_Braak) <- c( "Sample", 'Tissue', "Braak" )
+ROSMAP_N$Tissue <- 'DLPFC'
+ROSMAP_Braak <- ROSMAP_N[ , c("Sampleid", "Tissue", "braaksc") ] 
+colnames(ROSMAP_Braak) <- c( "Sample", 'Tissue', "Braak" )
+Mayo_Braak <- Mayo_N[ ,c("SampleID","Tissue","Braak")]
+colnames(Mayo_Braak) <- c( "Sample", 'Tissue', "Braak" )
+
+Braak <- as.data.frame(rbind(Mayo_Braak,ROSMAP_Braak,MSBB_Braak))
+Braak$Sample <- as.character( Braak$Sample )
+Braak$Tissue <- as.character( Braak$Tissue )
+
+
+Results <- data.frame( matrix( NA, 1 ,10 ) )
+colnames( Results ) <- c( 'Transcript', 'Gene', 'Symbol', 'Tissue', 'Coeff', 
+                          '95_Conf_L', '95_Conf_U', 'Z_Score', 'P_Val', 'FDR_PVal'
+                        )
+
+# Plot Function
+Braak_Plot <- function( data, tiss, gene ){
+  #'@data data frame eg Results
+  #'@tiss the tissue to use eg DLPFC
+  #'@gene the gene to use eg gene
+  
+  eval(parse(text=paste0( 'pDat <- data[ data$Symbol %in% gene & data$Tissue == \'', tiss ,'\', ]' )))
+  
+  if( dim(pDat)[1] > 0 ){
+  
+    if( (tiss %in% c('DLPFC','TCX','PHG')) == T){
+      plot <- ggplot(  pDat   , aes(x=Coeff, y=Transcript , colour=Direction)) +
+        scale_y_discrete() + 
+        scale_color_manual(values=c("#000000", "#7F0000" , "#000099"), breaks =c("NONE", "UP" , "DOWN")) +
+        geom_errorbar(aes(xmin=`95_Conf_L`, xmax=`95_Conf_U`), width=.1) +
+        geom_line() +
+        geom_point() +
+        #annotation_custom(grob) 
+        ggtitle(paste0(tiss,': ',gene)) + theme(legend.position = "none") + theme(axis.title.y = element_blank()) +
+        theme(axis.text.y = element_text(face="bold", size=6, angle=45)) +
+        geom_vline(xintercept = 0, linetype="dotted", color = "black", size=1.5)
+    }else{
+       plot <- ggplot(  pDat   , aes( x=Coeff, y=Transcript, colour=Direction )) +
+        scale_y_discrete() + 
+        scale_color_manual(values=c("#000000", "#7F0000" , "#000099"), breaks =c("NONE", "UP" , "DOWN")) +
+        geom_errorbar(aes(xmin=`95_Conf_L`, xmax=`95_Conf_U`), width=.1) +
+        geom_line() +
+        geom_point() +
+        #annotation_custom(grob) 
+        ggtitle(paste0(tiss,': ',gene)) + theme(legend.position = "none") + 
+        theme(axis.title.y = element_blank(), axis.text.y = element_blank()) +
+        geom_vline(xintercept = 0, linetype="dotted", color = "black", size=1.5)
+    } 
+  }else{
+    plot <- NULL
+  }
+  return(plot)
+}
+
+#RunAnalysis  
+for( TI in c( 'DLPFC', 'TCX', 'CBE', 'PHG', 'IFG', 'STG', 'FP' ) ){
+  eval(parse(text= paste0( 'Braak_temp <- Braak[ Braak$Tissue == \'', TI, '\', ]' )))
+  Braak_temp$Braak <- as.factor( Braak_temp$Braak )
+  
+  if( TI == 'DLPFC' ){
+    #table(row.names(Rosmap_EXP) %in% Trans$ensembl_transcript_id)
+    EXP_temp <- Rosmap_EXP[,Braak_temp$Sample]
+  }else{
+    if( (TI %in% c('TCX','CBE')) == T  ){
+      EXP_temp <- Mayo_EXP[,Braak_temp$Sample]
+    }else{
+      if( (TI %in% c( 'PHG', 'IFG', 'STG', 'FP')) == T  ){
+        EXP_temp <- MSBB_EXP[,Braak_temp$Sample]
+      }else{
+        warning("Improper Tissue Type")
+      }
+    }
+  }
+  
+  row.names(Trans) <- Trans$ensembl_transcript_id
+  
+  if( any(Trans[ Trans$hgnc_symbol == Gene,]$ensembl_transcript_id %in% row.names(EXP_temp)) ){
+    Pull <- Trans[ Trans$hgnc_symbol == Gene,]$ensembl_transcript_id[ Trans[ Trans$hgnc_symbol == Gene,]$ensembl_transcript_id %in% row.names(EXP_temp) ]
+    EXP_temp <- EXP_temp[ Pull , ]
+
+    for( i in 1:dim(EXP_temp)[1]){
+  
+      Transcript <- row.names(EXP_temp)[i]
+      Ge <- Trans[Transcript,]$hgnc_symbol
+      ENSG <- Trans[Transcript,]$ensembl_gene_id
+
+      foo <- cbind( Braak_temp[,1:3], 
+                    t(EXP_temp[ row.names(EXP_temp)[i], row.names(Braak_temp) ])
+                  )
+      foo$Braak <- as.factor(foo$Braak)
+      colnames(foo)[4] <- "Ge"
+      m <- polr( Braak ~ Ge, data = foo, Hess=TRUE)
+  
+      summary(m)
+      ctable <- coef(summary(m))
+      p <- pnorm(abs(ctable[, "t value"]), lower.tail = FALSE) * 2
+      ctable <- cbind(ctable, "p value" = p)
+      ci <- confint(m)
+      
+      Adj_P <- p.adjust( ctable['Ge','p value'], method = 'fdr', n = dim(EXP_temp)[1] )
+      
+      Entry <- c( Transcript, ENSG, Ge, TI, ctable['Ge','Value'], 
+                  as.numeric(ci[1]), as.numeric(ci[2]), ctable['Ge', "t value"] , ctable['Ge','p value'],
+                  Adj_P 
+                )
+      Results <- rbind( Results[1:dim(Results)[1], ], Entry)
+    }
+  }
+  else{
+  }
+  Results <- Results[ complete.cases(Results), ]
+  if( dim(Results[ complete.cases(Results), ])[1] > 0){
+    Results$Direction <- 'NONE'
+    Results$Direction[Results$FDR_PVal <= 0.05 & Results$Z_Score < 0 ] = 'DOWN'
+    Results$Direction[Results$FDR_PVal <= 0.05 & Results$Z_Score > 0] = 'UP'
+    
+    Results$Coeff <- as.numeric(as.character( Results$Coeff ))
+    Results$`95_Conf_L` <- as.numeric(as.character( Results$`95_Conf_L` ))
+    Results$`95_Conf_U` <- as.numeric(as.character( Results$`95_Conf_U` ))
+    Results$Z_Score <- as.numeric(as.character( Results$Z_Score ))
+    Results$P_Val  <- as.numeric(as.character( Results$P_Val ))
+    Results$FDR_PVal <- as.numeric(as.character( Results$FDR_PVal ))
+    
+    eval(parse(text= paste0( '\'', TI, '\' <- Braak_Plot( Results, \'', TI, '\', Gene )' )))
+  }else{
+  }
+}
+
+
+LIST <- NULL
+for( test in c('DLPFC','TCX','CBE','PHG','IFG','FP','STG') ){
+  if( eval(parse(text= paste0( 'is.null(', test, ')' ))) == TRUE ){
+  }else{
+    LIST <- c(LIST, test)
+  }
+}
+```
+
+```{r PlotLogBrak, cache = FALSE, fig.height = 5, fig.width = 14}
+N<-length(LIST) 
+if(length(LIST) == 0 ){
+  
+}else{
+  PLOTS <- paste0(LIST, collapse=',')
+  eval(parse(text= paste0( 'grid.arrange(', PLOTS , ', ncol=', N, ' )' )))
+}
+```
+
+
+```{r pagebreak3, results='asis', eval=is_latex_output()}
+cat('\\pagebreak')
+```
+
+### Transcript Expression Level Boxplot Case V. Control
+AD = CDR >= 1 & Braak >= 4 & CERAD >= 2 - Red \newline
+CONTROL = CDR <= 0.5 & Braak <= 3 & CERAD <= 1 - Blue \newline
 Other - Green
 
 ```{r formatBoxPlot, eval = T, include=F }
@@ -252,6 +466,95 @@ if(length(LIST) == 0 ){
     eval(parse(text= paste0( 'grid.arrange(', PLOTS , ', ncol=4, nrow=1 )' )))
   }
 }
+```
 
-#grid.arrange(DLPFC, TCX, CBE, PHG, IFG, FP, STG,ncol=4, nrow=2)
+```{r pagebreak4, results='asis', eval=is_latex_output()}
+cat('\\pagebreak')
+```
+
+### Gene Model
+Only expressed trascripts i.e. those in the analysis above are used in the gene model. \newline
+
+```{r ExonPlot, eval = T, include=F }
+
+library(Gviz)
+library(rtracklayer)
+library(trackViewer)
+library(org.Hs.eg.db)
+library( TxDb.Hsapiens.UCSC.hg38.knownGene )
+library("biomaRt")
+
+gene_id <- Gene
+filters <- 'hgnc_symbol'
+attrs <- c(filters, "ensembl_gene_id", "chromosome_name", "start_position", "end_position", 'strand')
+
+host <- 'ensembl.org'
+organism <- 'hsa'
+ensembl <- biomaRt::useMart("ENSEMBL_MART_ENSEMBL", host = host)
+
+ds <- biomaRt::listDatasets(ensembl)[, "dataset"]
+ds <- grep(paste0("^", organism), ds, value = TRUE)
+if (length(ds) == 0) {
+  stop(paste("Mart not found for:", organism))
+} else if (length(ds) > 1) {
+  message("Found several marts")
+  sapply(ds, function(d) message(paste(which(ds == d), d, sep = ": ")))
+  n <- readline(paste0("Choose mart (1-", length(ds), ") : "))
+  ds <- ds[as.integer(n)]
+}
+ensembl <- biomaRt::useDataset(ds, mart = ensembl)
+
+trans <- getBM(filters = 'hgnc_symbol',
+               attributes = attrs,
+               values = Gene,
+               mart = ensembl )
+
+if( trans$strand < 0 ){
+  Strand <- '-'
+}else{
+  Strand <- '+'
+}
+
+# txdb <- makeTxDbFromEnsembl("Homo sapiens", server="useastdb.ensembl.org")
+TxDB_ENS <- makeTxDbFromEnsembl("Homo sapiens", server="useastdb.ensembl.org")
+
+#entrezID <- get(Gene, org.Hs.egSYMBOL2EG)
+EID <- Trans[ Trans$hgnc_symbol == Gene, ]$ensembl_gene_id[1]
+#geneTrack(EID,TxDB_ENS)[[1]]
+theTrack <- geneTrack(EID,TxDB_ENS)[[1]]
+
+gr <- GRanges( paste0('chr',trans$chromosome_name ), IRanges( trans$start_position, trans$end_position), strand=Strand)
+trs <- geneModelFromTxdb(TxDb.Hsapiens.UCSC.hg38.knownGene,
+  org.Hs.eg.db,
+  gr=gr)
+
+viewerStyle <- trackViewerStyle()
+setTrackViewerStyleParam(viewerStyle, "margin", c(.1, .12, .02, .02))
+
+TIDs <- Trans[ Trans$hgnc_symbol == Gene, ]$ensembl_transcript_id
+TIDs <- TIDs[ !duplicated(TIDs) ]
+Trs <- trs[ names(trs)[ do.call( rbind, strsplit( names(trs), '[.]' ))[,1]  %in% TIDs ] ]
+
+track <- trackList( Trs)
+for( i in 1:length(track) ){
+  setTrackStyleParam( track[[i]], "ylabgp", list(cex=.8) )
+}
+
+if( any( grepl('MHC', gr@seqnames@values )) ){
+  PLOT <- 'NO'
+}else{
+   PLOT <- 'YES'
+}
+```
+
+```{r PlotExon, cache = FALSE, fig.height = 8, fig.width = 14}
+library(trackViewer)
+if( PLOT == 'YES' ){
+  viewTracks(track, 
+    gr=gr, viewerStyle=viewerStyle, 
+    autoOptimizeStyle=TRUE)
+}else{
+  print("Gene model has some transcripts assigned to alternate chromosomes a more detailed look is Required")
+}
+
 ```
