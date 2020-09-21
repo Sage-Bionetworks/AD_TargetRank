@@ -1,4 +1,4 @@
-*.RDat
+*.RData
 code/03-Run_cache/*
 *.Rout
 code/03-Run_cache/*

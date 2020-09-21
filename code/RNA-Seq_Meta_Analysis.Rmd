@@ -203,8 +203,12 @@ CODE <- syn_temp$store(synapseclient$Folder(name = "MetaAnalysis", parentId = pa
 Syns_Used <- c( 'syn8456631', 'syn8484996', 'syn8466814', 'syn21292041', 'syn21285564', 'syn21291908' )
 
 # Write results to files
-fwrite(meta.anlz.ad_cntrl, file = 'meta.anlz.ad_cntrl.tsv', sep = '\t', row.names = F, quote = F)
-ENRICH_OBJ <-  syn_temp$store( synapseclient$File( path='meta.anlz.ad_cntrl.tsv', name = 'RNASeq AD-Control meta-analysis across 6 brain regions (No CBE) hg38 Reprocessed Data', parentId=CODE$properties$id ), used = Syns_Used, activityName = activityName, executed = thisFile, activityDescription = activityDescription)
+fwrite(meta.anlz.ad_cntrl, file = 'RNASeq_meta.anlz.ad_cntrl.tsv', sep = '\t', row.names = F, quote = F)
+ENRICH_OBJ <-  syn_temp$store( synapseclient$File( path='RNASeq_meta.anlz.ad_cntrl.tsv', name = 'RNASeq AD-Control meta-analysis across 6 brain regions (No CBE) hg38 Reprocessed Data', parentId=CODE$properties$id ), used = Syns_Used, activityName = activityName, executed = thisFile, activityDescription = activityDescription)
+
+# Write results to files
+fwrite(Weights, file = 'RNASeq_meta_weights.ad_cntrl.tsv', sep = '\t', row.names = F, quote = F)
+ENRICH_OBJ <-  syn_temp$store( synapseclient$File( path='RNASeq_meta_weights.ad_cntrl.tsv', name = 'RNASeq AD-Control meta-analysis Weights', parentId=CODE$properties$id ), used = Syns_Used, activityName = activityName, executed = thisFile, activityDescription = activityDescription)
 ```
 
 ## Source code

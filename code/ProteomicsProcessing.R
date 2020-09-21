@@ -1092,8 +1092,582 @@ colnames(LF_DE)[c(1,2)] <- c('GName','ProtID')
 LF_DE <- as.data.frame(LF_DE,  stringsAsFactors =F )
 LF_DE$GName <- as.character(LF_DE$GName)
 
+####### Assign Averaged Weight Values, and Denote the Bidirectional Genes
+Process_Meta <- LF_DE
+table(LF_DE$GName)[ table(LF_DE$GName) > 8]
+LF_DE[ LF_DE$GName == 'TPM1', ] 
+
+Process_Meta$ENSG <- NA 
+
+table( LF_DE[ table(LF_DE$GName)[ table(LF_DE$GName) > 1], ]$Rand_Sig )
+# NO YES 
+# 888 147 
+
+Dups <- names( table(LF_DE$GName)[ table(LF_DE$GName) > 1] )
+Dups <- Dups[ !duplicated(Dups) ]
+
+Col2Av <- c('TE.fixed', 'seTE.fixed', 'lower.fixed', 'upper.fixed', 'zval.fixed', 'pval.fixed', 'TE.random',
+            'seTE.random', 'lower.random', 'upper.random', 'zval.random', 'pval.random', 'Q', 'tau', 'H', 'I2', 
+            'fdr.fixed', 'fdr.random')
+
+IndiciesToToss <- NULL
+Process_Meta$Averaged <- 'NO'
+Process_Meta$BiDirectional <- 'NO'
+AbigousRows <- NULL
+AbigousIDs <- NULL
+
+#Fix the TUBAL3/TBAL3 issue (Same ProtID but one is given deprecated Gene Name)
+Process_Meta[ Process_Meta$GName=='TBAL3' & Process_Meta$peptide_id=='TBAL3|A6NHL2-2' ,  ]$GName <- 'TUBAL3'
+Process_Meta[ Process_Meta$GName=='TUBAL3' & Process_Meta$peptide_id=='TBAL3|A6NHL2-2' ,  ]$peptide_id <- 'TUBAL3|A6NHL2-2'
+
+#Fix Deprecated HIST1H4A  Gene Name
+Process_Meta[ Process_Meta$GName=='HIST1H4A' & Process_Meta$peptide_id=='HIST1H4A|P62805' ,  ]$GName <- 'H4C1'
+Process_Meta[ Process_Meta$GName=='H4C1' & Process_Meta$peptide_id=='HIST1H4A|P62805' ,  ]$peptide_id <- 'H4C1|P62805'
+Process_Meta[ Process_Meta$GName=='H4C1' & Process_Meta$peptide_id=='H4C1|P62805' ,  ]$ENSG <- 'ENSG00000278637'
+
+for( i in 1:length(Dups)){
+  Examine <- row.names(Process_Meta[ Process_Meta$GName == Dups[i], ])
+  #At Least one Peptide is Significant
+  if( 'YES' %in% Process_Meta[ Process_Meta$GName == Dups[i], ]$Rand_Sig ){
+    TempLook <- Process_Meta[ Process_Meta$GName == Dups[i], ]
+    IndiciesToToss <- c(IndiciesToToss, row.names( TempLook[ TempLook$Rand_Sig == 'NO', ] ) )
+    #Are there Multiple Significant Peptides?
+    if( as.numeric(table(TempLook$Rand_Sig)['YES']) > 1 ){
+      yTs <- TempLook[ TempLook$Rand_Sig == 'YES', ]
+      
+      #Find the Ambigous Direction Protien Changes
+      if( length( table(yTs$Direction)) > 1 ){
+        AbigousRows <- c( AbigousRows,row.names( yTs ) )
+        AbigousIDs <- c( AbigousIDs, yTs[1,]$GName )
+        message( paste0('Error ', yTs[1,]$GName,' is ambiguos direction, taking Max Value') )
+        yTs$BiDirectional <- 'YES'
+        #yTs[ yTs$pval.random < 0.05, ]
+        Keep <- row.names( yTs[ yTs$pval.random < 0.05 & 
+                            abs( yTs$TE.random ) == max(abs( yTs$TE.random ) ), ])
+        
+        Process_Meta[ row.names(yTs), ] <- yTs[row.names(yTs),]
+        IndiciesToToss <- c(IndiciesToToss, row.names(TempLook)[ row.names(TempLook) != Keep])
+      }else{
+        for( COL in Col2Av){
+          eval(parse(text=paste0( 'yTs$', COL, ' <- mean(yTs$', COL, ')' )))
+          IndiciesToToss <- c(IndiciesToToss, row.names(yTs)[2:length(row.names(yTs))] )
+          yTs$Averaged <- 'YES'
+          Process_Meta[ row.names(yTs), ] <- yTs[row.names(yTs),]
+        }
+      }
+    }else{
+      IndiciesToToss <- c(IndiciesToToss, row.names(TempLook[ TempLook$Rand_Sig == 'NO', ]) )
+    }
+    
+  }else{
+    IndiciesToToss <- c(IndiciesToToss, Examine[2:length(Examine)] )
+  }
+}
+
+#Fix TUBAL3
+for( COL in Col2Av){
+  eval(parse(text=paste0( 'Process_Meta[ Process_Meta$GName==\'TUBAL3\' & Process_Meta$peptide_id==\'TUBAL3|A6NHL2-2\' ,  ]$', COL, ' <- mean(Process_Meta[ Process_Meta$GName==\'TUBAL3\' & Process_Meta$peptide_id==\'TUBAL3|A6NHL2-2\' ,  ]$', COL, ')' )))
+  Process_Meta[ Process_Meta$GName=='TUBAL3' & Process_Meta$peptide_id=='TUBAL3|A6NHL2-2' ,  ]$Averaged <- 'YES'
+}
+
+IndiciesToToss <- c(IndiciesToToss,
+                    row.names(Process_Meta[ Process_Meta$GName=='TUBAL3' & Process_Meta$peptide_id=='TUBAL3|A6NHL2-2' ,  ])[2])
+Process_Meta <- Process_Meta[ (row.names(Process_Meta) %in% IndiciesToToss) == F , ]
+table(grepl('ENSG', Process_Meta$ENSG))
+
+###### Pull ENSGs, Combine ENSGs with multiple Peptides,
+RNA_Vals <- read.table( syn_temp$get('syn22414716')$path, header = T, sep='\t' )
+
+RNA_Vals <- RNA_Vals[ complete.cases(RNA_Vals), ]
+# TBCE is the only Protien with  2 ENSG values
+
+Trans <- RNA_Vals[ RNA_Vals[ RNA_Vals$Type == 'Actual Rank' ,]$Gene %in% Process_Meta$GName, c('ENSG', 'Gene') ] 
+Trans <- unique( Trans )
+#Trans <- Trans[ (Trans$Gene == "")==F ,]
+
+for( NAM in 1:dim(Process_Meta)[1] ){
+  if(  Process_Meta[NAM,]$GName == 'TBCE' ){
+    
+  }else{
+    if( Process_Meta[NAM,]$GName %in% Trans$Gene){
+      Process_Meta[ NAM , ]$ENSG <- Trans[ Trans$Gene == Process_Meta[NAM,]$GName, ]$ENSG 
+    }else{
+      
+    }
+  }
+}
+table(grepl('ENSG', Process_Meta$ENSG))
+
+#Find the Missing Values:
+NAMES <- Process_Meta[ grepl( 'ENSG', Process_Meta$ENSG )==F , ]$GName
+
+library(biomaRt)
+mart <- useDataset("hsapiens_gene_ensembl", useMart("ensembl"))
+G_list <- getBM(filters= "hgnc_symbol", attributes= c("ensembl_gene_id","hgnc_symbol"),values=NAMES,mart= mart)
+G_list <- G_list[ G_list$ensembl_gene_id %in% RNA_Vals$ENSG, ]
+
+for( NAM in NAMES ){
+  if(  NAM == 'TBCE' ){
+    
+  }else{
+    if( Process_Meta[Process_Meta$GName == NAM,]$GName %in% G_list$hgnc_symbol){
+      Process_Meta[ Process_Meta$GName == NAM , ]$ENSG <- G_list[ G_list$hgnc_symbol == Process_Meta[Process_Meta$GName == NAM,]$GName, ]$ensembl_gene_id 
+    }else{
+    }
+  }
+}
+table(grepl('ENSG', Process_Meta$ENSG))
+
+## Fix Up The TCBE Duplication to match RNA-Seq
+foo <-  RNA_Vals[  RNA_Vals$Type == 'Actual Rank',]
+Reps <- names(table(foo$Gene)[ table(foo$Gene) > 1 ])
+Reps <- Reps[ Reps != '' ]
+#P_Dups <- foo[ foo$Gene %in% Reps , ]$Gene
+pReps <- Reps[ Reps %in% Process_Meta$GName ]
+
+#Reset Rownames
+row.names(Process_Meta) <- c(1:dim(Process_Meta)[1])
+for( REP in pReps ){
+  eNSGReps <- foo[ foo$Gene == REP, ]$ENSG
+  for( i in 1:length(eNSGReps) ){
+    if( i == 1 ){
+      Process_Meta[ Process_Meta$GName == REP, ]$ENSG <- eNSGReps[i]
+    }else{
+      Process_Meta[ as.character( dim(Process_Meta)[1]+1), ] <- Process_Meta[ Process_Meta$GName == REP, ]
+      Process_Meta[ dim(Process_Meta)[1], ]$ENSG <- eNSGReps[i]
+    }
+  }
+}
+table(grepl('ENSG', Process_Meta$ENSG))
+
+# Find the Gene names Not in the RNA-Seq!
+
+#uniprot_gn_symbol UniProtKB Gene Name symbol feature_page
+#98       uniprot_gn_id     UniProtKB Gene Name ID feature_page
+#99    uniprotswissprot    UniProtKB/Swiss-Prot ID feature_page
+#100    uniprotsptrembl        UniProtKB/TrEMBL ID feature_page
+#3027  uniprotswissprot    UniProtKB/Swiss-Prot ID    sequences
+#3028   uniprotsptrembl
+
+uniProt <- useMart('ENSEMBL_MART_ENSEMBL', dataset='hsapiens_gene_ensembl')
+#listDatasets(uniProt, dataset='hsapiens_gene_ensembl')
+listAttributes(uniProt)[ grepl('prot', listAttributes(uniProt)$description),]
+listAttributes(uniProt)[ grepl('UniProt', listAttributes(uniProt)$description),]
+IDs <- Process_Meta$ProtID
+GO_IDs <- getBM(attributes
+                =c("uniprot_gn_id","ensembl_gene_id","hgnc_symbol"),filter="uniprot_gn_id",values=IDs ,mart=uniProt)
+
+GO_ID_RNACopy <- GO_IDs[ GO_IDs$ensembl_gene_id %in% RNA_Vals$ENSG, ]
+GO_ID_RNACopy <- GO_ID_RNACopy[ GO_ID_RNACopy$hgnc_symbol != 'TBCE', ]
+row.names(GO_ID_RNACopy) <- GO_ID_RNACopy$hgnc_symbol
+
+for( i in 1:dim(Process_Meta)[1] ){
+  if( Process_Meta[i,]$GName %in% row.names(GO_ID_RNACopy) ){
+    Process_Meta[i,]$ENSG <- GO_ID_RNACopy[ Process_Meta[i,]$GName, ]$ensembl_gene_id
+  }else{
+    
+  }
+}
+
+#Get ENSGs and Gene Names for ProtIDs with Deprecated nomenclature
+
+FETCH <- Process_Meta[ (Process_Meta$GName %in% RNA_Vals$Gene) ==  F, ]$ProtID[ Process_Meta[ (Process_Meta$GName %in% RNA_Vals$Gene) ==  F, ]$ProtID %in% GO_IDs$uniprot_gn_id ]
+
+#row.names( GO_IDs ) <- GO_IDs$uniprot_gn_id
+
+Fetch <- GO_IDs[ GO_IDs$uniprot_gn_id %in% FETCH, ]
+#row.names(Fetch) <- Fetch$uniprot_gn_id
+
+table(Process_Meta$ENSG %in% RNA_Vals$ENSG, Process_Meta$GName %in% RNA_Vals$Gene)
+
+Process_Meta[ Process_Meta$ProtID == 'P62805',]
+
+BreakOut <- Process_Meta[ (Process_Meta$ENSG %in% RNA_Vals$ENSG) == F & 
+                          (Process_Meta$GName %in% RNA_Vals$Gene) == F &
+                            Process_Meta$GName != 'H4C1', ]
+FixGene_Name <- GO_IDs[ GO_IDs$uniprot_gn_id %in% BreakOut$ProtID & GO_IDs$ensembl_gene_id %in% RNA_Vals$ENSG, ]
+row.names(FixGene_Name) <- FixGene_Name$uniprot_gn_id
+
+for( i in 1:dim(BreakOut)[1] ){
+  if(BreakOut[i,]$ProtID %in% FixGene_Name$uniprot_gn_id ){
+    BreakOut[i,]$GName <- FixGene_Name[ BreakOut[i,]$ProtID, ]$hgnc_symbol
+    BreakOut[i,]$ENSG <- FixGene_Name[ BreakOut[i,]$ProtID, ]$ensembl_gene_id
+  }
+}
+table(grepl('ENSG', Process_Meta$ENSG))
+
+#Replace old Rows With correct Named Rows:
+AddBack <- BreakOut[ grepl('ENSG', BreakOut$ENSG), ]
+Process_Meta[ row.names(AddBack), ] <- AddBack[ row.names(AddBack) , ]
+
+#Check Name-ENSG MATCH
+table(Process_Meta$ENSG %in% RNA_Vals$ENSG, Process_Meta$GName %in% RNA_Vals$Gene)
+
+
+#New UnAnotated Group: The Ones with no ENSG Match in RNA-Seq and No ENSG Annotated N==253
+Process_Meta$AmbigousPeptide <- 'NO'
+Process_Meta[ Process_Meta$ProtID == 'P62805', ]
+BreakOut <- Process_Meta[ (grepl( 'ENSG', Process_Meta$ENSG)) == F, ]
+
+table(BreakOut$ProtID %in% GO_IDs$uniprot_gn_id, BreakOut$GName %in% GO_IDs$hgnc_symbol)
+table(BreakOut$GName %in% GO_IDs$hgnc_symbol)
+
+Tiny_Gos <- GO_IDs[ GO_IDs$uniprot_gn_id %in% BreakOut$ProtID, ]
+#Make an ENSG Choice on the Repeated Gene Names
+table(Tiny_Gos$hgnc_symbol)[table(Tiny_Gos$hgnc_symbol)>1]
+
+Keeps <- c( 'ENSG00000204427', 'ENSG00000243649', 'ENSG00000103426', 'ENSG00000099977',
+            'ENSG00000099984', 'ENSG00000168148', 'ENSG00000179412', 'ENSG00000211895',
+            'ENSG00000211893', 'ENSG00000211892', 'ENSG00000211942', 'ENSG00000240972',
+            'ENSG00000255526', 'ENSG00000143627', 'ENSG00000204983', 'ENSG00000204540',
+            'ENSG00000110536' )
+            
+names(Keeps) <- c( 'ABHD16A', 'CFB', 'CORO7-PAM16', 'DDT', 
+                   'GSTT2', 'H3-4', 'HNRNPCL4', 'IGHA1',
+                   'IGHG2', 'IGHG4', 'IGHV3-13', 'MIF',
+                   'NEDD8-MDP1', 'PKLR', 'PRSS1', 'PSORS1C1', 
+                   'PTPMT1')
+
+for( NAM in names(Keeps)){
+  Tiny_Gos[ Tiny_Gos$hgnc_symbol == NAM,]$ensembl_gene_id <- Keeps[ NAM ]
+}
+
+
+Tiny_Gos<-Tiny_Gos[!duplicated(Tiny_Gos$ensembl_gene_id),]
+
+#Mark Ambigous Peptides
+AmbigousPeptides <- Tiny_Gos$uniprot_gn_id[ duplicated(Tiny_Gos$uniprot_gn_id) ]
+Process_Meta[ Process_Meta$ProtID %in% AmbigousPeptides, ]$AmbigousPeptide <- 'YES'
+BreakOut[ BreakOut$ProtID %in% AmbigousPeptides, ]$AmbigousPeptide <- 'YES'
+
+#Arbitrarily choose an ENSG and Gene Name for Ambigous Peptides
+Tiny_Gos <- Tiny_Gos[ !duplicated(Tiny_Gos$uniprot_gn_id), ]
+
+#Place Gene Name and ENSG for 153 of the ~253 ProtIDs beloning to Genes Not in RNA-Seq
+Repl<-NULL
+for( i in 1:dim(Tiny_Gos)[1] ){
+  if( Tiny_Gos[i,]$uniprot_gn_id %in% BreakOut$ProtID ){
+    BreakOut[ BreakOut$ProtID == Tiny_Gos[i,]$uniprot_gn_id, ]$GName <- Tiny_Gos[i,]$hgnc_symbol
+    BreakOut[ BreakOut$ProtID == Tiny_Gos[i,]$uniprot_gn_id, ]$ENSG <- Tiny_Gos[i,]$ensembl_gene_id
+    Repl <- c( Repl, row.names( BreakOut[ BreakOut$ProtID == Tiny_Gos[i,]$uniprot_gn_id, ] ) )
+  }else{
+  }
+}
+
+Process_Meta[ Repl, ] <- BreakOut[ Repl, ]
+table(grepl('ENSG', Process_Meta$ENSG))
+
+#Last 100:
+#Are the protien IDs wonky?? - Use Gene Names
+BreakOut <- BreakOut[ (row.names(BreakOut) %in% Repl) == F, ]
+Name_IDs <- getBM(attributes
+                =c("uniprot_gn_id","ensembl_gene_id","hgnc_symbol"),filter="hgnc_symbol",values=BreakOut$GName ,mart=uniProt)
+
+#The Hyphen in the ProtID is a deprecated version Matched to a deprecated Gene Name
+ProtIDTrans <- cbind( BreakOut$ProtID, do.call( rbind, strsplit( BreakOut$ProtID, '-') )[,1])
+row.names(ProtIDTrans) <- ProtIDTrans[,2]
+colnames(ProtIDTrans) <- c('Old','New')
+ProtIDTrans <- ProtIDTrans[ row.names(ProtIDTrans) %in% Name_IDs$uniprot_gn_id, ] 
+Na_IDs <- Name_IDs[ Name_IDs$uniprot_gn_id %in% row.names(ProtIDTrans), ]
+
+Sync <-c( 'ENSG00000198848', 'ENSG00000213920' )
+names(Sync) <- c( 'CES1', 'MDP1' )
+for( NAM in names(Sync) ){
+  Na_IDs[ Na_IDs$hgnc_symbol == NAM, ]$ensembl_gene_id <- Sync[NAM]
+}
+Na_IDs <- Na_IDs[!duplicated(Na_IDs$ensembl_gene_id), ]
+row.names(Na_IDs) <- Na_IDs$uniprot_gn_id
+
+ProtIDTrans <- cbind(ProtIDTrans[,c(1,2)], Na_IDs[ ProtIDTrans[,2], ]) 
+
+row.names(ProtIDTrans) <- ProtIDTrans$Old
+
+#Replace UniProt, and ENSG in MetaData
+Repl<-NULL
+for( i in 1:dim(BreakOut)[1] ){
+  if( BreakOut[i,]$ProtID %in% row.names(ProtIDTrans) ){
+    BreakOut[i,]$ProtID <- ProtIDTrans[ BreakOut[i,]$ProtID, ]$uniprot_gn_id
+    BreakOut[i,]$ENSG <- ProtIDTrans[ BreakOut[i,]$ProtID, ]$ensembl_gene_id
+    Repl<- c(Repl, row.names(BreakOut[i,]))
+  }else{
+    
+  }
+}
+
+Process_Meta[ Repl, ] <- BreakOut[ Repl, ]
+table(grepl('ENSG', Process_Meta$ENSG))
+
+#Last 79:
+#Are the protien IDs wonky?? - Use Un-Hyphonated ProtIDs (ie Gene name deprecated!)
+BreakOut <- BreakOut[ (row.names(BreakOut) %in% Repl) == F, ]
+ProtIDTrans <- cbind( BreakOut$ProtID, do.call( rbind, strsplit( BreakOut$ProtID, '-') )[,1])
+colnames(ProtIDTrans) <- c('Old','New')
+Name_IDs <- getBM(attributes
+                  =c("uniprot_gn_id","ensembl_gene_id","hgnc_symbol"),filter="uniprot_gn_id",values=ProtIDTrans[,'New'] ,mart=uniProt)
+
+#Fix Deprecated ENSGs:
+Sync <- c( 'ENSG00000072071', 'ENSG00000166780', 'ENSG00000104524', 'ENSG00000184640' )
+names(Sync) <- c('ADGRL1', 'BMERB1', 'PYCR3', 'SEPTIN9')
+for( NAM in names(Sync) ){
+  Name_IDs[ Name_IDs$hgnc_symbol == NAM, ]$ensembl_gene_id <- Sync[NAM]
+}
+Na_IDs <- Name_IDs[!duplicated(Name_IDs$ensembl_gene_id), ]
+row.names(Na_IDs) <- Na_IDs$uniprot_gn_id
+
+ProtIDTrans <- ProtIDTrans[ ProtIDTrans[,2] %in% Na_IDs$uniprot_gn_id, ]
+ProtIDTrans <- cbind(ProtIDTrans[,c(1,2)], Na_IDs[ ProtIDTrans[,2], ]) 
+row.names(ProtIDTrans) <- ProtIDTrans$Old
+
+#Replace UniProt, and ENSG in MetaData
+Repl<-NULL
+for( i in 1:dim(BreakOut)[1] ){
+  if( BreakOut[i,]$ProtID %in% row.names(ProtIDTrans) ){
+    BreakOut[i,]$ProtID <- ProtIDTrans[ BreakOut[i,]$ProtID, ]$uniprot_gn_id
+    BreakOut[i,]$GName <- ProtIDTrans[ BreakOut[i,]$ProtID, ]$hgnc_symbol
+    BreakOut[i,]$ENSG <- ProtIDTrans[ BreakOut[i,]$ProtID, ]$ensembl_gene_id
+    Repl<- c(Repl, row.names(BreakOut[i,]))
+  }else{
+    
+  }
+}
+
+# Check
+# BreakOut[Repl, c('GName', 'ProtID', 'ENSG')]
+Process_Meta[ Repl, ] <- BreakOut[ Repl, ]
+table(grepl('ENSG', Process_Meta$ENSG))
+
+########## 43 More.....
+BreakOut <- BreakOut[ (row.names(BreakOut) %in% Repl) == F, ]
+
+#Remove Contaminants
+BreakOut <- BreakOut[ (grepl('CON__', BreakOut$GName)) == F, ]
+Process_Meta <- Process_Meta[ (grepl('CON__', Process_Meta$GName))==F, ]
+
+BreakOut[ , c( 'GName', 'ProtID', 'ENSG' )]
+
+Name_IDs <- getBM(attributes =c("uniprot_gn_id","ensembl_gene_id","hgnc_symbol"),
+                  filter="hgnc_symbol",
+                  values=BreakOut$GName,
+                  mart=uniProt)
+
+Sync <- c( 'ENSG00000211896', 'ENSG00000211897', 'ENSG00000211899', 'ENSG00000241351',
+           'ENSG00000055955', 'ENSG00000233917', 'ENSG00000270800', 'ENSG00000173432')
+names(Sync) <-c( 'IGHG1', 'IGHG3', 'IGHM', 'IGKV3-11', 
+                 'ITIH4', 'POTEB', 'RPS10-NUDT3', 'SAA1' )
+
+for( NAM in names(Sync) ){
+  Name_IDs[ Name_IDs$hgnc_symbol == NAM, ]$ensembl_gene_id <- Sync[NAM]
+}
+Na_IDs <- Name_IDs[!duplicated(Name_IDs$ensembl_gene_id), ]
+row.names(Na_IDs) <- Na_IDs$hgnc_symbol
+
+row.names(Na_IDs)
+
+Woof<-c( 'P06727', 'P04114','Q58FF8','Q58FF6','P01857','P01860',
+         'P01871', 'P01834','P04433','P0DOY2','Q14624','P02763',
+         'A2A3N6', 'A0A0A6YYL3','Q59GN2','S4R435','P0DJI8','Q6EEV6'
+        )
+names(Woof) <- c("APOA4", "APOB", "HSP90AB2P", "HSP90AB4P", "IGHG1", "IGHG3", 
+                 "IGHM", "IGKC", "IGKV3-11", "IGLC2", "ITIH4", "ORM1", 
+                 "PIPSL", "POTEB", "RPL39P5", "RPS10-NUDT3", "SAA1", "SUMO4" )
+
+for( NAM in names(Woof) ){
+  Na_IDs[ Na_IDs$hgnc_symbol == NAM, ]$uniprot_gn_id <- Woof[NAM]
+}
+
+Na_IDs <- Na_IDs[!duplicated(Na_IDs$ensembl_gene_id), ]
+row.names(Na_IDs) <- Na_IDs$hgnc_symbol
+
+Repl<-NULL
+for( i in 1:dim(BreakOut)[1] ){
+  if( BreakOut[i,]$GName %in% row.names(Na_IDs) ){
+    BreakOut[i,]$ProtID <- Na_IDs[ BreakOut[i,]$GName, ]$uniprot_gn_id
+    #BreakOut[i,]$GName <- ProtIDTrans[ BreakOut[i,]$GName, ]$hgnc_symbol
+    BreakOut[i,]$ENSG <- Na_IDs[ BreakOut[i,]$GName, ]$ensembl_gene_id
+    Repl<- c(Repl, row.names(BreakOut[i,]))
+  }else{
+    
+  }
+}
+
+# Check
+# BreakOut[Repl, c('GName', 'ProtID', 'ENSG')]
+Process_Meta[ Repl, ] <- BreakOut[ Repl, ]
+table(grepl('ENSG', Process_Meta$ENSG))
+
+
+########## 21 More..... FAKKK
+BreakOut <- BreakOut[ (row.names(BreakOut) %in% Repl) == F, ]
+
+Custom <- matrix(NA, 21, 3)
+colnames( Custom ) <- c( 'Name', 'ProtID', 'ENSG' )
+
+Custom[1,] <- c('', 'ABETA', 'ENSG00000142192.beta')
+Custom[2,] <- c('GET3', 'O43681', 'ENSG00000198356')
+Custom[3,] <- c('ATP5F1EP2', 'Q5VTU8', 'ENSG00000180389')
+Custom[4,] <- c('', 'B4DLN1', 'ENSG00000262660')
+Custom[5,] <- c('GATD3A', 'P0DPI2', 'ENSG00000160221')
+Custom[6,] <- c('FMC1-LUC7L2', 'A0A0A6YYJ8', 'ENSG00000269955')
+Custom[7,] <- c('NAXD', 'Q8IW45', 'ENSG00000213995')
+Custom[8,] <- c('MIA2', 'Q96PC5', 'ENSG00000150527')
+Custom[9,] <- c('', 'F5H5P2', 'ENSG00000255730')
+Custom[10,] <- c('', 'F8W031', 'ENSG00000144785 ')
+Custom[11,] <- c('CASTOR2', 'A6NHX0', 'ENSG00000274070')
+Custom[12,] <- c('GCN1', 'Q92616', 'ENSG00000089154')
+Custom[13,] <- c('', 'H0Y858', 'ENSG00000173366')
+Custom[14,] <- c('', 'H0YIV9', 'ENSG00000111780')
+Custom[15,] <- c('', 'H3BN98', 'ENSG00000260342')
+Custom[16,] <- c('PUDP', 'Q08623', 'ENSG00000130021')
+Custom[17,] <- c('H2BC19P', 'Q6DRA6', 'ENSG00000220323' )
+Custom[18,] <- c('ECPAS', 'Q5VYK3', 'ENSG00000136813')
+Custom[19,] <- c('IGKV3-20', 'P01619', 'ENSG00000239951' )
+Custom[20,] <- c('MRTFB', 'Q9ULH7', 'ENSG00000186260')
+Custom[21,] <- c('RPS17', 'P08708', 'ENSG00000182774')
+
+row.names( Custom ) <- BreakOut$GName
+Repl<-NULL
+for( NAM in row.names( Custom ) ){
+    
+    BreakOut[ BreakOut$GName==NAM,]$ENSG <- Custom[ NAM, 'ENSG' ]
+    BreakOut[ BreakOut$GName==NAM,]$ProtID <- Custom[ NAM, 'ProtID' ]
+    Repl<- c( Repl, row.names(BreakOut[ BreakOut$GName==NAM,]) )
+    BreakOut[ BreakOut$GName==NAM,]$GName <- Custom[ NAM, 'Name' ]
+}
+
+Process_Meta[ Repl, ] <- BreakOut[ Repl, ]
+table(grepl('ENSG', Process_Meta$ENSG))
+
+sink<-Process_Meta
+
+#Re Scrubb Duplicates:
+
+#A2M P01023
+#4417
+#Process_Meta[ Process_Meta$GName == 'A2M' & Process_Meta$ProtID == 'P01023', ]$Averaged <- 'NO' 
+Dubs <- names(table(Process_Meta$ENSG)[ table(Process_Meta$ENSG) > 1 ])
+Dubs <- names(table(Process_Meta$GName)[ table(Process_Meta$GName) > 1 ])
+Dups <- Dubs[ Dubs != "" ]
+
+Col2Av <- c('TE.fixed', 'seTE.fixed', 'lower.fixed', 'upper.fixed', 'zval.fixed', 'pval.fixed', 'TE.random',
+            'seTE.random', 'lower.random', 'upper.random', 'zval.random', 'pval.random', 'Q', 'tau', 'H', 'I2', 
+            'fdr.fixed', 'fdr.random')
+
+IndiciesToToss <- NULL
+Process_Meta$Averaged <- 'NO'
+Process_Meta$BiDirectional <- 'NO'
+AbigousRows <- NULL
+AbigousIDs <- NULL
+
+for( i in 1:length(Dups)){
+  Examine <- row.names(Process_Meta[ Process_Meta$GName == Dups[i], ])
+  #At Least one Peptide is Significant
+  if( 'YES' %in% Process_Meta[ Process_Meta$GName == Dups[i], ]$Rand_Sig ){
+    TempLook <- Process_Meta[ Process_Meta$GName == Dups[i], ]
+    IndiciesToToss <- c(IndiciesToToss, row.names( TempLook[ TempLook$Rand_Sig == 'NO', ] ) )
+    #Are there Multiple Significant Peptides?
+    if( as.numeric(table(TempLook$Rand_Sig)['YES']) > 1 ){
+      yTs <- TempLook[ TempLook$Rand_Sig == 'YES', ]
+      
+      #Find the Ambigous Direction Protien Changes
+      if( length( table(yTs$Direction)) > 1 ){
+        AbigousRows <- c( AbigousRows,row.names( yTs ) )
+        AbigousIDs <- c( AbigousIDs, yTs[1,]$GName )
+        message( paste0('Error ', yTs[1,]$GName,' is ambiguos direction, taking Max Value') )
+        yTs$BiDirectional <- 'YES'
+        #yTs[ yTs$pval.random < 0.05, ]
+        Keep <- row.names( yTs[ yTs$pval.random < 0.05 & 
+                                  abs( yTs$TE.random ) == max(abs( yTs$TE.random ) ), ])
+        
+        Process_Meta[ row.names(yTs), ] <- yTs[row.names(yTs),]
+        IndiciesToToss <- c(IndiciesToToss, row.names(TempLook)[ row.names(TempLook) != Keep])
+      }else{
+        for( COL in Col2Av){
+          eval(parse(text=paste0( 'yTs$', COL, ' <- mean(yTs$', COL, ')' )))
+          IndiciesToToss <- c(IndiciesToToss, row.names(yTs)[2:length(row.names(yTs))] )
+          yTs$Averaged <- 'YES'
+          Process_Meta[ row.names(yTs), ] <- yTs[row.names(yTs),]
+        }
+      }
+    }else{
+      IndiciesToToss <- c(IndiciesToToss, row.names(TempLook[ TempLook$Rand_Sig == 'NO', ]) )
+    }
+    
+  }else{
+    IndiciesToToss <- c(IndiciesToToss, Examine[2:length(Examine)] )
+  }
+}
+
+Process_Meta <- Process_Meta[ (row.names(Process_Meta) %in% IndiciesToToss) == F, ] 
+
+#Weight Model Based on Treatment Effect ( TE.random )
+colnames(Process_Meta)[ colnames(Process_Meta) ==  'Rand_Sig' ] <- 'Sig'
+
+Process_Meta <- Process_Meta[ order(abs(Process_Meta$TE.random)), ]
+Process_Meta$y <- c( 1:dim(Process_Meta)[1] )/dim(Process_Meta)[1]
+Process_Meta <- Process_Meta[ order(-abs(Process_Meta$TE.random)), ]
+Process_Meta$Type <- 'Actual Rank'
+Process_Meta$TE.random.abs<- abs( Process_Meta$TE.random )
+
+mylogit <- glm(Process_Meta$y  ~ abs( Process_Meta$TE.random.abs), data = Process_Meta, family = "binomial")
+
+#Make Weight Template
+Work <- Process_Meta
+#Work$y <- rank(abs( Work$logFC)) / max(rank(abs( Work$logFC)))
+Work$y <- rank(abs( Work$TE.random.abs)) / max(rank(abs( Work$TE.random.abs)))
+Work$Type <- "Actual Rank"
+#plot( log(abs( Work$TE.random.abs)), Work$y )
+
+#Fit Logistic Model:
+mylogit <- glm(Work$y  ~ abs( Work$TE.random.abs), data = Work, family = "binomial")
+
+Work$abs_TE <- abs( Work$TE.random.abs)
+
+Work2 <- Work  
+Work2$Type <- "Predicted Weight"
+#Work2$y <- y <- 1/(1+exp( -( mylogit$coefficients[1]+mylogit$coefficients[2]* abs( Work$logFC) ) ))
+Work2$y <- 1/(1+exp( -( mylogit$coefficients[1]+mylogit$coefficients[2]* abs( Work$TE.random.abs) ) ))
+#plot( log(abs( Work2$TE.random.abs)), Work2$y )
+
+tWork <- as.data.frame(rbind( Work ,Work2 ))
+tWork$Sig <- ifelse(tWork$fdr.random < 0.05, "YES", "NO" )
+
+#Push Non-Significant Weights to zero
+tWork <- tWork[ order(-abs(tWork$y)), ]
+tWork$y_Final <- tWork$y
+tWork[ tWork$Sig == 'NO',]$y_Final <- 0
+
+
+plot( log(abs( tWork[ tWork$Sig == 'YES' & tWork$Type == 'Predicted Weight', ]$TE.random.abs)), 
+      tWork[ tWork$Sig == 'YES' & tWork$Type == 'Predicted Weight', ]$y 
+    )
+
 # Save DataFrame and push to Synapse
-write.csv( meta.anlz.ad_cntrl, file = 'Raw_Proteomics_MetaAnalysis.csv')
+parentId = 'syn22351719';
+activityName = 'Meta analysis of differential Proteomics Data';
+activityDescription = 'Fixed and random effect meta-analysis of AMP-AD Proteomics Data (4 brain regions )';
+thisFileName <- 'ProteomicsProcessing.R'
+
+# Github link
+thisRepo <- getRepo(repository = "Sage-Bionetworks/AD_TargetRank", ref="branch", refName='master')
+thisFile <- getPermlink(repository = thisRepo, repositoryPath=paste0('code/',thisFileName))
+
+CODE <- syn_temp$store(synapseclient$Folder(name = "MetaAnalysis", parentId = parentId))
+Syns_Used <- c( 'syn18914942', 'syn18914952', 'syn18914920', 'syn9637748', 'syn6100414',
+                'syn18918360', 'syn18914620', 'syn18914694', 'syn18918327', 'syn18914935',
+                'syn18914936', 'syn18914939' )
+
+# Write results to files
+fwrite(LF_DE, file = 'Raw_Proteomics_meta.anlz.ad_cntrl.tsv', sep = '\t', row.names = F, quote = F)
+ENRICH_OBJ <-  syn_temp$store( synapseclient$File( path='Raw_Proteomics_meta.anlz.ad_cntrl.tsv', name = 'Proteomics AD-Control meta-analysis across 4 brain regions', parentId=CODE$properties$id ), used = Syns_Used, activityName = activityName, executed = thisFile, activityDescription = activityDescription)
+
+fwrite(Process_Meta, file = 'Processed_Proteomics_meta.anlz.ad_cntrl.tsv', sep = '\t', row.names = F, quote = F)
+ENRICH_OBJ <-  syn_temp$store( synapseclient$File( path='Raw_Proteomics_meta.anlz.ad_cntrl.tsv', name = 'Proteomics AD-Control meta-analysis across 4 brain regions', parentId=CODE$properties$id ), used = Syns_Used, activityName = activityName, executed = thisFile, activityDescription = activityDescription)
+
+# Write results to files
+fwrite(tWork, file = 'Proteomics_meta_Weights.ad_cntrl.tsv', sep = '\t', row.names = F, quote = F)
+ENRICH_OBJ <-  syn_temp$store( synapseclient$File( path='Proteomics_meta_Weights.ad_cntrl.tsv', name = 'Proteomics AD-Control meta-analysis Weights', parentId=CODE$properties$id ), used = Syns_Used, activityName = activityName, executed = thisFile, activityDescription = activityDescription)
+
+
 
 
 
