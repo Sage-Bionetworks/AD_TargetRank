@@ -262,4 +262,28 @@ ENRICH_OBJ <-  syn_temp$store( synapseclient$File( path='~/AD_TargetRank/OmicsSc
                                activityName = activityName, 
                                executed = thisFile, 
                                activityDescription = activityDescription)
+#Push Table
+cols = list( synapseclient$Column( name='ENSG', columnType='STRING', maximumSize=20),
+             synapseclient$Column( name='GName', columnType='STRING', maximumSize=20),
+             synapseclient$Column( name='RNA_TE', columnType='DOUBLE'),
+             synapseclient$Column( name='RNA_fdr_CorPVal', columnType='DOUBLE'),
+             synapseclient$Column( name='RNA_Sig', columnType='STRING', maximumSize=20),
+             synapseclient$Column( name='RNA_Direction', columnType='STRING', maximumSize=20),
+             synapseclient$Column( name='RNA_Weight', columnType='DOUBLE'),
+             synapseclient$Column( name='Pro_TE', columnType='DOUBLE'),
+             synapseclient$Column( name='Pro_fdr_CorPVal', columnType='DOUBLE'),
+             synapseclient$Column( name='Pro_Sig', columnType='STRING', maximumSize=20),
+             synapseclient$Column( name='Pro_Direction', columnType='STRING', maximumSize=20),
+             synapseclient$Column( name='Pro_Weight', columnType='DOUBLE'),
+             synapseclient$Column( name='Harness', columnType='DOUBLE'),
+             synapseclient$Column( name='Rank', columnType='DOUBLE'),
+             synapseclient$Column( name='Predicted_Weight', columnType='DOUBLE'),
+             synapseclient$Column( name='TYPE', columnType='STRING', maximumSize=20),
+             synapseclient$Column( name='Final_Weight', columnType='DOUBLE'),
+             synapseclient$Column( name='OmicsScore', columnType='DOUBLE')
+           )
 
+schema = synapseclient$Schema(name='Omics Scores Version 2.0', columns=cols, parent='syn22351719')
+table = synapseclient$Table(schema, "OmicsScores.csv")
+table = syn_temp$store(table)
+  
