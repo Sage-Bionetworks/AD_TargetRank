@@ -217,6 +217,7 @@ activityDescription = 'Omics Scoring harnesss based on RNA-Seq and Proteomics me
 thisFileName <- 'Omics_Harness.R'
 
 # Github link
+library(githubr)
 thisRepo <- getRepo(repository = "Sage-Bionetworks/AD_TargetRank", ref="branch", refName='master')
 thisFile <- getPermlink(repository = thisRepo, repositoryPath=paste0('code/',thisFileName))
 
