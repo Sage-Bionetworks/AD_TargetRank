@@ -263,27 +263,51 @@ ENRICH_OBJ <-  syn_temp$store( synapseclient$File( path='~/AD_TargetRank/OmicsSc
                                executed = thisFile, 
                                activityDescription = activityDescription)
 #Push Table
+Comb$RNA_TE <- as.double(Comb$RNA_TE) 
+Comb$RNA_fdr_CorPVal <- as.double(Comb$RNA_fdr_CorPVal) 
+Comb$RNA_Weight <- as.double(Comb$RNA_Weight) 
+
+Comb$Pro_TE <- as.double(Comb$Pro_TE) 
+Comb$Pro_fdr_CorPVal <- as.double(Comb$Pro_fdr_CorPVal) 
+Comb$Pro_Weight <- as.double(Comb$Pro_Weight) 
+Comb$Harness <- as.double(Comb$Harness) 
+Comb$Rank <- as.double(Comb$Rank) 
+
+Comb$Predicted_Weight <- as.double(Comb$Predicted_Weight) 
+Comb$Final_Weight <- as.double(Comb$Final_Weight) 
+Comb$OmicsScore <- as.double(Comb$OmicsScore) 
+
+Comb$Pro_fdr_CorPVal <- signif(Comb$Pro_fdr_CorPVal , digits = 6)
+Comb$RNA_fdr_CorPVal <- signif(Comb$RNA_fdr_CorPVal , digits = 6)
+Comb$Harness <- signif(Comb$Harness , digits = 6)
+Comb$Predicted_Weight <- signif(Comb$Predicted_Weight , digits = 6)
+Comb$RNA_TE <- signif(Comb$RNA_TE , digits = 6)
+Comb$Pro_TE   <- signif(Comb$Pro_TE   , digits = 6)
+
 cols = list( synapseclient$Column( name='ENSG', columnType='STRING', maximumSize=20),
-             synapseclient$Column( name='GName', columnType='STRING', maximumSize=20),
-             synapseclient$Column( name='RNA_TE', columnType='DOUBLE'),
-             synapseclient$Column( name='RNA_fdr_CorPVal', columnType='DOUBLE'),
+             synapseclient$Column( name='GName', columnType='STRING', maximumSize=40),
+             synapseclient$Column( name='RNA_TE', columnType='STRING', maximumSize=20),
+             synapseclient$Column( name='RNA_fdr_CorPVal', columnType='STRING', maximumSize=20),
              synapseclient$Column( name='RNA_Sig', columnType='STRING', maximumSize=20),
              synapseclient$Column( name='RNA_Direction', columnType='STRING', maximumSize=20),
-             synapseclient$Column( name='RNA_Weight', columnType='DOUBLE'),
-             synapseclient$Column( name='Pro_TE', columnType='DOUBLE'),
-             synapseclient$Column( name='Pro_fdr_CorPVal', columnType='DOUBLE'),
+             synapseclient$Column( name='RNA_Weight', columnType='STRING', maximumSize=20),
+             synapseclient$Column( name='Pro_TE', columnType='STRING', maximumSize=20),
+             synapseclient$Column( name='Pro_fdr_CorPVal', columnType='STRING', maximumSize=20),
              synapseclient$Column( name='Pro_Sig', columnType='STRING', maximumSize=20),
              synapseclient$Column( name='Pro_Direction', columnType='STRING', maximumSize=20),
-             synapseclient$Column( name='Pro_Weight', columnType='DOUBLE'),
-             synapseclient$Column( name='Harness', columnType='DOUBLE'),
-             synapseclient$Column( name='Rank', columnType='DOUBLE'),
-             synapseclient$Column( name='Predicted_Weight', columnType='DOUBLE'),
+             synapseclient$Column( name='Pro_Weight', columnType='STRING', maximumSize=20),
+             synapseclient$Column( name='Harness', columnType='STRING', maximumSize=20),
+             synapseclient$Column( name='Rank', columnType='STRING', maximumSize=20),
+             synapseclient$Column( name='Predicted_Weight', columnType='STRING', maximumSize=20),
              synapseclient$Column( name='TYPE', columnType='STRING', maximumSize=20),
-             synapseclient$Column( name='Final_Weight', columnType='DOUBLE'),
-             synapseclient$Column( name='OmicsScore', columnType='DOUBLE')
+             synapseclient$Column( name='Final_Weight', columnType='STRING', maximumSize=20),
+             synapseclient$Column( name='OmicsScore', columnType='STRING', maximumSize=20)
            )
 
-schema = synapseclient$Schema(name='Omics Scores Version 2.0', columns=cols, parent='syn22351719')
-table = synapseclient$Table(schema, "OmicsScores.csv")
+
+write.csv( Comb, '~/AD_TargetRank/OmicsTable.csv', 
+           row.names = F, quote = F)
+schema = synapseclient$Schema(name='Omics Scores Version 2.0', columns=cols, parent='syn21532474')
+table = synapseclient$Table(schema, "OmicsTable.csv")
 table = syn_temp$store(table)
   
