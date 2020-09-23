@@ -1,3 +1,5 @@
+*.csv
+*.pdf
 *.RData
 code/03-Run_cache/*
 *.Rout
