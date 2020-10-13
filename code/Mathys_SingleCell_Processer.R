@@ -151,10 +151,10 @@ activityName = 'Template For Cell Type Expression';
 activityDescription = 'Template For Cell Type Expression';
 CODE <- syn_temp$store(synapseclient$Folder(name = "Cell Type Specificity", parentId = parentId))
 
-thisFileName <- 'Mathys_SingleCell_Processor.R'
+thisFileName <- 'Mathys_SingleCell_Processer.R'
 
 # Github link
-thisRepo <- githubr::getRepo(repository = "jgockley62/igraph_Network_Expansion", ref="branch", refName='master')
+thisRepo <- githubr::getRepo(repository = "jgockley62/AD_TargetRank", ref="branch", refName='master')
 thisFile <- githubr::getPermlink(repository = thisRepo, repositoryPath=paste0('code/',thisFileName))
 
 #Set Used SynIDs For Provenance
@@ -172,95 +172,6 @@ all.annotations = list(
 )
 
 
-ENRICH_OBJ <-  syn_temp$store( synapseclient$File( path='/home/jgockley/celltype_Gene_Expression_template.csv', name = 'GeneTemplate', parentId=CODE$properties$id ), used = Syns_Used, activityName = activityName, activityDescription = activityDescription)
+ENRICH_OBJ <-  syn_temp$store( synapseclient$File( path='/home/jgockley/celltype_Gene_Expression_template.csv', name = 'GeneTemplate', parentId=CODE$properties$id ), executed = thisFile, used = Syns_Used, activityName = activityName, activityDescription = activityDescription)
 
-
-library(biomaRt)
-ensembl = useMart("ensembl")
-
-searchDatasets(mart = ensembl, pattern = "hsapiens")
-
-grch38     <- useMart("ensembl",dataset="hsapiens_gene_ensembl")
-getBM( attributes=c("ensembl_gene_id","hgnc_symbol"),
-       filters=c("hgnc_symbol"),values= names( Zeros$AD.Ast ), mart=grch38)
-
-#KMeans
-KMeans_Scale_Win_Log_Cnts <- Scale_Win_Log_Cnts
-KMeans_Scale_Win_Log_Cnts[ which(is.na(KMeans_Scale_Win_Log_Cnts)) ] <- 0
-
-
-KMeans_Scale_Win_Log_Cnts[ which(KMeans_Scale_Win_Log_Cnts == 0 )] <- NA
-K_Foo <- kmeans(KMeans_Scale_Win_Log_Cnts[na.omit(KMeans_Scale_Win_Log_Cnts)], 8)
-
-
-
-
-
-
-
-
-########################################################################################################################
-########################################################################################################################
-
-breakout <- do.call( rbind, strsplit( as.character(mathys_colnames[,1]), '[.]' ) )
-breakout <- as.data.frame(breakout)
-#breakout[,2:3] <- breakout[,1:2]
-breakout <- cbind( do.call( rbind, strsplit( as.character(breakout[,1]), '_' ) ), breakout[,1:2] )
-breakout <- as.data.frame(breakout)
-breakout[,2:3] <- breakout[,1:2]
-
-breakout[,1] <- paste0( breakout[,2], '_', breakout[,3], '.', breakout[,4] )
-
-CellType <- as.data.frame( matrix( 0, dim(counts)[1],length( names(table(breakout[,2])) ) ))
-colnames(CellType) <- names(table(breakout[,2]))
-row.names(CellType) <- row.names(counts)
-
-
-#Only finds 1158 genes because of sparseness issues
-for( CT in names(table(breakout[,2])) ){
-  small <- counts[ , breakout[ breakout[,2] %in% CT,1 ] ]
-  CellType[,CT] <- apply( small, 1, median )
-}
-
-CellType_filt <- CellType [which(rowSums(CellType) > 0), ] 
-
-Mod_Median <- function( Vec ){
-  Vec <- Vec[ which(Vec > 0) ]
-  median( Vec )
-}
-
-CellType <- as.data.frame( matrix( 0, dim(counts)[1],length( names(table(breakout[,2])) ) ))
-colnames(CellType) <- names(table(breakout[,2]))
-row.names(CellType) <- row.names(counts)
-
-for( CT in names(table(breakout[,2])) ){
-  small <- counts[ , breakout[ breakout[,2] %in% CT,1 ] ]
-  CellType[,CT] <- apply( small, 1, Mod_Median )
-}
-CellType_ModFilt <- CellType [which(rowSums(CellType) > 0), ] 
-
-K_Mod <- scale(CellType_ModFilt)
-#install.packages("factoextra")
-
-library(factoextra)
-
-K_Foo <- kmeans(K_Mod, 9)
-
-RowOrder <- NULL
-for( i in 1:9 ){
-  RowOrder <- c(RowOrder, names( K_Foo$cluster[ K_Foo$cluster == i ] ) )
-}
-
-K_Mod <- K_Mod[ RowOrder, ]
-
-heatmap( K_Mod[names( K_Foo$cluster[ K_Foo$cluster == 5 ]),] )
-#1=
-#2=
-#3=
-#4=
-#5
-#6
-#7
-#8
-#9
-               
+ENRICH_OBJ <-  syn_temp$store( synapseclient$File( path='/home/jgockley/celltype_Gene_Expression_template.csv', name = 'GeneTemplate', parentId=CODE$properties$id ), executed = thisFile, used = Syns_Used, activityName = activityName, activityDescription = activityDescription)
