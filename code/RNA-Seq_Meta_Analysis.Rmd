@@ -55,13 +55,15 @@ downloadFile <- function(id){
   fread(syn_temp$get(id)$path, data.table = F)
 }
 # Read covariates
-covar.ids = c(ROSMAP = 'syn8456631', MSSM = 'syn8484996', MAYO = 'syn8466814')
+#covar.ids = c(ROSMAP = 'syn8456631', MSSM = 'syn8484996', MAYO = 'syn8466814')
+covar.ids = c(ROSMAP = 'syn23643706', MSSM = 'syn8484996', MAYO = 'syn8466814')
 all.used.ids = as.character(covar.ids)
 covar =  covar.ids %>%
   lapply(downloadFile)
 
 # Read adjusted expression
-expr.ids = c(ROSMAP = 'syn21292041', MSSM = 'syn21285564', MAYO = 'syn21291908')
+#expr.ids = c(ROSMAP = 'syn21292041', MSSM = 'syn21285564', MAYO = 'syn21291908')
+expr.ids = c(ROSMAP = 'syn23643727', MSSM = 'syn21285564', MAYO = 'syn21291908')
 all.used.ids = c(all.used.ids, as.character(expr.ids))
 expr =  expr.ids %>%
   lapply(downloadFile) %>%
@@ -70,8 +72,12 @@ expr =  expr.ids %>%
 
 ```{r modify.covar}
 covar$ROSMAP = covar$ROSMAP %>%
-  dplyr::select(SampleID, Sex, Diagnosis, APOE4) %>%
-  dplyr::mutate(Tissue = 'DLPFC')
+  dplyr::rename(Sex = sex) %>%
+  dplyr::rename(APOE4 = apoe4) %>%
+  tidyr::separate(Tissue.Diagnosis, c('Tissue', 'Diagnosis'), sep = '\\.') %>%
+  tidyr::separate(Tissue.Diagnosis.SEX, c('Tissue1', 'Diagnosis1', 'Sex1'), sep = '\\.') %>%
+  dplyr::select(SampleID, Sex, Tissue1, Diagnosis, Tissue, APOE4) #%>%
+  #dplyr::mutate(Tissue = 'DLPFC')
 covar$MSSM = covar$MSSM %>%
   dplyr::select(SampleID, Sex, Tissue.Diagnosis, Tissue.APOE4) %>%
   dplyr::rename(Sex = Sex) %>%
