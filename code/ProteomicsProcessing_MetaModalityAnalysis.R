@@ -1264,33 +1264,4 @@ ENRICH_OBJ <-  syn_temp$store( synapseclient$File( path='Raw_Proteomics_meta.anl
 data.table::fwrite(tWork, file = 'Proteomics_meta_Weights.ad_cntrl.tsv', sep = '\t', row.names = F, quote = F)
 ENRICH_OBJ <-  syn_temp$store( synapseclient$File( path='Proteomics_meta_Weights.ad_cntrl.tsv', name = 'Proteomics AD-Control meta-analysis Weights', parentId=CODE$properties$id ), used = Syns_Used, activityName = activityName, executed = thisFile, activityDescription = activityDescription)
 
-#Save LFQ Objects
-sCODE <- syn_temp$store(synapseclient$Folder(name = "LFQ_Corrected_Objects", parentId = parentId))
-Syns_Used <- c( 'syn18914942', 'syn18914952', 'syn18914920', 'syn9637748', 'syn6100414',
-                'syn18918360', 'syn18914620', 'syn18914694', 'syn18918327', 'syn18914935',
-                'syn18914936', 'syn18914939' )
-
-Imputed_Banner <- Imputed
-save(Imputed_Banner, file="Corrected_Banner_LFQ.RData")
-ENRICH_OBJ <-  syn_temp$store( synapseclient$File( path='Corrected_Banner_LFQ.RData', 
-                                                   name = 'Corrected Banner LFQ Data', 
-                                                   parentId=sCODE$properties$id ), 
-                               used = Syns_Used, activityName = activityName, executed = thisFile, activityDescription = activityDescription)
-save(Imputed_MSBB, file="Corrected_MSBB_LFQ.RData")
-ENRICH_OBJ <-  syn_temp$store( synapseclient$File( path='Corrected_MSBB_LFQ.RData', 
-                                                   name = 'Corrected MSBB LFQ Data', 
-                                                   parentId=sCODE$properties$id ), 
-                               used = Syns_Used, activityName = activityName, executed = thisFile, activityDescription = activityDescription)
-save(Imputed_Mayo, file="Corrected_Mayo_LFQ.RData")
-ENRICH_OBJ <-  syn_temp$store( synapseclient$File( path='Corrected_Mayo_LFQ.RData', 
-                                                   name = 'Corrected Mayo LFQ Data', 
-                                                   parentId=sCODE$properties$id ), 
-                               used = Syns_Used, activityName = activityName, executed = thisFile, activityDescription = activityDescription)
-save(Imputed_BLSA, file="Corrected_BLSA_LFQ.RData")
-ENRICH_OBJ <-  syn_temp$store( synapseclient$File( path='Corrected_BLSA_LFQ.RData', 
-                                                   name = 'Corrected BLSA LFQ Data', 
-                                                   parentId=sCODE$properties$id ), 
-                               used = Syns_Used, activityName = activityName, executed = thisFile, activityDescription = activityDescription)
-
-
 
