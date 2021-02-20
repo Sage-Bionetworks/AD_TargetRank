@@ -1241,7 +1241,7 @@ plot( log(abs( tWork[ tWork$Sig == 'YES' & tWork$Type == 'Predicted Weight', ]$T
 parentId = 'syn22351719';
 activityName = 'Meta analysis of differential Proteomics Data';
 activityDescription = 'Fixed and random effect meta-analysis of AMP-AD Proteomics Data (4 brain regions )';
-thisFileName <- 'ProteomicsProcessing.R'
+thisFileName <- 'ProteomicsProcessing_MetaModalityAnalysis.R'
 
 # Github link
 thisRepo <- githubr::getRepo(repository = "Sage-Bionetworks/AD_TargetRank", ref="branch", refName='master')
