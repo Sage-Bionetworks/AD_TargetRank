@@ -642,6 +642,10 @@ for( i in 1:dim(foo)[1] ){
   }
 }
 
+row.names( foo )[ grepl('PALM2|Q8IXS6-2', row.names(foo)) ] <- 'PALM2AKAP2|Q8IXS6-2'
+row.names( foo )[ grepl('SEPT5|G3XAH0', row.names(foo)) ] <- 'SEPTIN5|G3XAH0'
+row.names( foo )[ grepl('SEPT5|Q99719', row.names(foo)) ] <-'SEPTIN5|Q99719'
+
 #################################
 # Load the LFQ:
 load( syn_temp$get( 'syn24828686' )$path )
@@ -674,9 +678,13 @@ rn_Banner <- ReNameR( Imputed_Banner$ScalWins )
 
 row.names( Imputed_Mayo$ScalWins )[ grepl('PALM2', row.names( Imputed_Mayo$ScalWins )) ] <- 'PALM2AKAP2|Q8IXS6'
 rn_Mayo <- ReNameR( Imputed_Mayo$ScalWins )
+row.names( rn_Mayo )[ grepl('BAI2|O60241-3', row.names( rn_Mayo )) ] <- 'ADGRB2|O60241-3'
 
 row.names( Imputed_MSBB$ScalWins )[ grepl('PALM2', row.names( Imputed_MSBB$ScalWins )) ] <- 'PALM2AKAP2|Q8IXS6-2'
 rn_MSBB <- ReNameR( Imputed_MSBB$ScalWins )
+
+row.names(rn_Mayo)[ grepl('H1F0|P07305-2', row.names(rn_Mayo)) ] <- 'H1-0|P07305-2'
+
 
 Peptides <- c( row.names(rn_BLSA),row.names(rn_Banner), row.names(rn_Mayo), row.names(rn_MSBB), row.names(foo) ) 
 length(Peptides[ !duplicated(Peptides) ])
@@ -685,6 +693,7 @@ Comb <- data.frame( matrix( NA, length(Peptides[ !duplicated(Peptides) ]), sum( 
 colnames( Comb ) <- c( colnames(rn_BLSA),colnames(rn_Banner), colnames(rn_Mayo), colnames(rn_MSBB), colnames(foo)  )
 ## "SEPT5|G3XAH0" "SEPT5|Q99719"
 row.names( Comb ) <- Peptides[ !duplicated(Peptides) ]
+
 
 Comb <- as.matrix(Comb)
 Comb[ row.names( rn_MSBB ), colnames(rn_MSBB) ] <- rn_MSBB[ row.names( rn_MSBB ), colnames(rn_MSBB) ] 
@@ -1127,7 +1136,24 @@ Process_Meta$BiDirectional <- 'NO'
 AbigousRows <- NULL
 AbigousIDs <- NULL
 
-Process_Meta$peptide_id[ Process_Meta$peptide_id == 'SEPT5|G3XAH0' ] <- 'SEPTIN5|Q99719'
+### Final Name Clean
+#SEPT5
+#Process_Meta[ grepl('SEPT5', Process_Meta$peptide_id),]
+#Process_Meta[ grepl('PALM2', Process_Meta$peptide_id),]
+#Process_Meta[ grepl('ADGRB2', Process_Meta$peptide_id) | grepl('BAI2', Process_Meta$peptide_id),]
+#Process_Meta[ grepl('BAI2', Process_Meta$peptide_id) | grepl('BAI2', Process_Meta$peptide_id),]
+
+#   'ENSG00000184702', 'ENSG00000157654', 'ENSG00000121753', 'ENSG00000189060'
+## SEPT5 - ENSG00000184702
+#  PALM2 - ENSG00000157654
+## PALM2AKAP2 - ENSG00000157654
+#  ADGRB2 - ENSG00000121753 
+## BAI2 - ENSG00000121753 
+#  ADGRB2 - ENSG00000189060 
+## BAI2 - ENSG00000189060 
+
+
+
 
 for( i in 1:length(Dups)){
   Examine <- row.names(Process_Meta[ Process_Meta$GName == Dups[i], ])
@@ -1182,6 +1208,8 @@ Ambigous_7 <- c( "ASPH", "BMERB1", "ERBIN", "GNAL", "MAP4", "NCAM1", "PRKACB", "
 #                   row.names(Process_Meta[ Process_Meta$GName=='TUBAL3' & Process_Meta$peptide_id=='TUBAL3|A6NHL2-2' ,  ])[2])
 Process_Meta <- Process_Meta[ (row.names(Process_Meta) %in% IndiciesToToss) == F , ]
 table(grepl('ENSG', Process_Meta$ENSG))
+
+
 
 Process_Meta$peptide_id <- as.character( Process_Meta$peptide_id )
 

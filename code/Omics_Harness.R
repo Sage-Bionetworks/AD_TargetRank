@@ -19,7 +19,6 @@ colnames( Comb ) <- c( 'ENSG', 'GName',
                         'RNA_TE', 'RNA_fdr_CorPVal', 'RNA_Sig', 'RNA_Direction', 'RNA_Weight',
                         'Pro_TE', 'Pro_fdr_CorPVal', 'Pro_Sig', 'Pro_Direction', 'Pro_Weight'
                         )
-
 #Seed the Dataframe
 Comb$ENSG <- row.names( Comb )
 
@@ -43,8 +42,9 @@ Comb[ row.names(rna), ]$RNA_TE <- rna$TE.random
 Comb[ row.names(rna), ]$GName <- rna$Gene
 Comb[ row.names(rna), ]$RNA_Weight <- rna$PreAdjWeight
 
+## is.na vs is_NA
 for( i in 1:dim(Comb)[1] ){
-  if( is_NA(Comb[i,]$RNA_TE) ){
+  if( is.na(Comb[i,]$RNA_TE) ){
   }else{
     if( Comb[i,]$RNA_fdr_CorPVal < 0.05 ){
       Comb[i,]$RNA_Sig <- 'YES'
@@ -75,8 +75,8 @@ poo <- NULL
 for( i in 1:dim(Comb)[1] ){
   
   #NA for either Gene
-  if( is_NA(Comb[i,]$RNA_TE) || is_NA(Comb[i,]$Pro_TE) ){
-    if( is_NA(Comb[i,]$RNA_TE)){
+  if( is.na(Comb[i,]$RNA_TE) || is.na(Comb[i,]$Pro_TE) ){
+    if( is.na(Comb[i,]$RNA_TE)){
       
       if( Comb[i,]$Pro_fdr_CorPVal > 0.05 ){
         Comb[i,]$Harness <- ( 1.45 * Comb[i,]$Pro_Weight )
