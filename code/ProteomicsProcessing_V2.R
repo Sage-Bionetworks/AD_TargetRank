@@ -830,17 +830,20 @@ thisFile <- githubr::getPermlink(repository = thisRepo, repositoryPath=paste0('c
 #CODE <- syn_temp$store(synapseclient$Folder(name = "Proteomics_Data_Version2", parentId = parentId))
 
 ENRICH_OBJ <-  synapser::synStore( 
-  synapser::File( 
-    path='', name = 'ProteomicsProcessing_V2.R',
+  synapser::File(
+    path = 'Proteomics_Data.RData',
+    name = 'TMT and LFQ Proteomics Data',
     parentId=parentId 
-    ), 
-  used = syns_used, 
-  activityName = activityName, 
-  executed = thisFile, 
-  activityDescription = activityDescription
+    ),
+  activity = synapser::Activity( 
+    used = syns_used, 
+    name = activityName, 
+    executed = thisFile, 
+    description = activityDescription
+  )
 )
 
-
+rm('Proteomics_Data.RData')
 ################################################################################
 
 ############
