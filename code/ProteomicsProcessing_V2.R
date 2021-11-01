@@ -749,8 +749,8 @@ for( nam in names(exp)){
   colnames(exp_scaled_wins[[nam]]) <- colnames(exp[[nam]])
 }
 
-LFQ$Banner$AdjEXP <- LFQ$Banner$AdjEXP[ !(grepl( 'CON__', row.names(LFQ$Banner$AdjEXP))),]
-LFQ$Banner$ScalWins <- LFQ$Banner$ScalWins[ !(grepl( 'CON__', row.names(LFQ$Banner$ScalWins))),]
+Imputed_Banner$AdjEXP <- Imputed_Banner$AdjEXP[ !(grepl( 'CON__', row.names(Imputed_Banner$AdjEXP))),]
+Imputed_Banner$ScalWins <- Imputed_Banner$ScalWins[ !(grepl( 'CON__', row.names(Imputed_Banner$ScalWins))),]
 
 # Push All to Synapse
 LFQ <- list(Banner = Imputed_Banner,
