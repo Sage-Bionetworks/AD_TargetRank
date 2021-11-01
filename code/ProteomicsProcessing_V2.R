@@ -1,22 +1,6 @@
 library(dplyr)
 library(doParallel)
 
-#### Redo ENSG Tag to the Proteomic Data:
-ensembl=biomaRt::useMart("ensembl", dataset="hsapiens_gene_ensembl")
-x <- biomaRt::getBM(
-  attributes=c("hgnc_symbol","uniprotsptrembl", "ensembl_gene_id", 'external_gene_name', 'uniprot_gn_symbol'),
-  values="*",mart=ensembl
-)
-x$data_base <- 'tr'
-y <- biomaRt::getBM(
-  attributes=c("hgnc_symbol","uniprotswissprot",  "ensembl_gene_id", 'external_gene_name','uniprot_gn_symbol'),
-  values="*",mart=ensembl
-)
-y$data_base <- 'sp'
-
-#write.table(x,file="c:/uniprot_sptremblTOhgnc_symbol",sep="\t")
-#write.table(y,file="c:/uniprot_swissprotTOhgnc_symbol",sep="\t")
-
 #################################################################################
 # Load LFQ Data
 load(synapser::synGet('syn24828686')$path )
@@ -765,6 +749,9 @@ for( nam in names(exp)){
   colnames(exp_scaled_wins[[nam]]) <- colnames(exp[[nam]])
 }
 
+LFQ$Banner$AdjEXP <- LFQ$Banner$AdjEXP[ !(grepl( 'CON__', row.names(LFQ$Banner$AdjEXP))),]
+LFQ$Banner$ScalWins <- LFQ$Banner$ScalWins[ !(grepl( 'CON__', row.names(LFQ$Banner$ScalWins))),]
+
 # Push All to Synapse
 LFQ <- list(Banner = Imputed_Banner,
             Blsa = Imputed_BLSA,
@@ -827,7 +814,6 @@ thisFileName <- 'ProteomicsProcessing_V2.R'
 thisRepo <- githubr::getRepo(repository = "Sage-Bionetworks/AD_TargetRank", ref="branch", refName='master')
 thisFile <- githubr::getPermlink(repository = thisRepo, repositoryPath=paste0('code/',thisFileName))
 
-#CODE <- syn_temp$store(synapseclient$Folder(name = "Proteomics_Data_Version2", parentId = parentId))
 
 ENRICH_OBJ <-  synapser::synStore( 
   synapser::File(
@@ -843,65 +829,168 @@ ENRICH_OBJ <-  synapser::synStore(
   )
 )
 
-rm('Proteomics_Data.RData')
+file.remove('Proteomics_Data.RData')
 ################################################################################
-
-############
-# Sample ID
-tmt_ba9_meta$Sample <- tmt_ba9_meta$SpecimenID
-# SEX
-tmt_ba9_meta$Gender <- 1  
-tmt_ba9_meta[tmt_ba9_meta$msex ==0, ]$Gender <- 2
-# PMI
-tmt_ba9_meta$PMI <- tmt_ba9_meta$pmi
-
-lookup <- read.csv(synapser::synGet('syn18914620')$path)
-
-table(lookup$Sample %in% tmt_ba9_meta$LFQ.ID.Banner)
-
-# head(Imputed_Banner$NuMeta)
-Age
-
-Control
-AD
-PlaqueTotal
-TangleTotal
-CERAD
-Braak
-ApoE
-lastMMSE
-Batch
-SampleForCombat
+### ENSG to Uniprot|HNGC name
 
 
-# Remove columns of only NAs
-tmt_ba9_meta <- as.data.frame(tmt_ba9_meta)
-dim(tmt_ba9_meta[, colSums(is.na(tmt_ba9_meta)) != nrow(tmt_ba9_meta)])
-#tmt_ba9_meta$pmi <- signif(as.numeric(tmt_ba9_meta$pmi),2)
-tmt_ba9_meta$pmi <- as.numeric(tmt_ba9_meta$pmi)
-tmt_ba9_meta$CERAD <- as.numeric(tmt_ba9_meta$CERAD)
+#### Redo ENSG Tag to the Proteomic Data:
+ensembl=biomaRt::useMart("ensembl", dataset="hsapiens_gene_ensembl")
+x <- biomaRt::getBM(
+  attributes=c("hgnc_symbol","uniprotsptrembl", "ensembl_gene_id", 'external_gene_name', 'uniprot_gn_symbol'),
+  values="*",mart=ensembl
+)
+x$data_base <- 'tr'
+y <- biomaRt::getBM(
+  attributes=c("hgnc_symbol","uniprotswissprot",  "ensembl_gene_id", 'external_gene_name','uniprot_gn_symbol'),
+  values="*",mart=ensembl
+)
+y$data_base <- 'sp'
 
-temp_trial <- tmt_ba9_meta[ tmt_ba9_meta$Cohort=='Banner',]#$LFQ.ID.Banner %in% Imputed_Banner$NuMeta$Sample)
-row.names(temp_trial) <- as.character(temp_trial$LFQ.ID.Banner)
-comp_trial <- Imputed_Banner$NuMeta[ row.names(Imputed_Banner$NuMeta) %in% as.character(temp_trial$LFQ.ID.Banner), ]
-temp_trial <- temp_trial[ row.names(comp_trial),]
+#write.table(x,file="c:/uniprot_sptremblTOhgnc_symbol",sep="\t")
+#write.table(y,file="c:/uniprot_swissprotTOhgnc_symbol",sep="\t")
 
-comp_trial[ !(comp_trial$CERAD == temp_trial$CERAD),]
-temp_trial[ !(temp_trial$pmi ==comp_trial$PMI),]
-##### BA-6 (Premotor cortex) / BA-37 Temporal Cortex
-##### BA-36 perirhinal cortex of the Temporal Cortex
-##### BA-24 ventral anterior cingulate cortex of the Temporal Cortex
-
-################################################################################
+#######################################################################################################################
 ####  UniProt ID Conversion
 
-Translation <- read.csv(
-  file = '~/Desktop/Projects/TREAT_AD/Proteomics_Id_Translation/Adapt_Erics_code/cleaned_UniprotToGENESYMBOLApr2015_v03.csv',
-  header = T)
+#Translation <- read.csv(
+#  file = '~/Desktop/Projects/TREAT_AD/Proteomics_Id_Translation/Adapt_Erics_code/cleaned_UniprotToGENESYMBOLApr2015_v03.csv',
+#  header = T)
+# Load the FASTA that Eric used to process the data
+Translation <- read.csv( file = synapser::synGet('syn26428681')$path, header = T)
+Translation$ProteomicsID <- paste0(Translation$SYMBOL,'|',Translation$UniprotID)
 
+#Remove  the Translation hgnc column this is incorrectly annotated to UniProt
+Translation <- Translation[ , colnames(Translation)[!(colnames(Translation) %in% 'hgnc_symbol')]]
+########################################################################################################################
 ## There are translation entries missing Gene Symbol
 Translation$fixed <- 'No'
 Translation[Translation$SYMBOL==0,]$fixed <- 'Yes'
+
+## Load a Biomart Object from our RNA-Seq pipeline to harmonize ENSGs to current ENSGs
+bm <- read.table( file = synapser::synGet('syn26340639')$path, header = T, sep='\t')
+
+
+####### Split into those with gene symbol in bioMart (N = 85,394) and those not in Biomart (N = 5,017)
+# N = 85,265
+uniq_bm_gene_names <- Translation[ Translation$SYMBOL %in% names(table(bm$hgnc_symbol)[table(bm$hgnc_symbol) ==1 ]), ]
+for( rows in 1:dim(uniq_bm_gene_names)[1]){
+  uniq_bm_gene_names[rows,]$EnsemblGene <- bm[ bm$hgnc_symbol == uniq_bm_gene_names[rows,]$SYMBOL,]$ensembl_gene_id
+}
+
+# N = 129
+rep_bm_gene_names <- Translation[ Translation$SYMBOL %in% names(table(bm$hgnc_symbol)[table(bm$hgnc_symbol) > 1 ]), ]
+rep_bm_gene_names$gene_ensg <- paste0(rep_bm_gene_names$SYMBOL, '|', rep_bm_gene_names$EnsemblGene)
+
+rep_bm_gene_names[ rep_bm_gene_names$EnsemblGene == 'ENSG00000206549',]$EnsemblGene <- 'ENSG00000283706'
+rep_bm_gene_names[ rep_bm_gene_names$EnsemblGene == 'ENSG00000116957',]$EnsemblGene <- 'ENSG00000116957' 
+  
+rep_bm_gene_names[ rep_bm_gene_names$EnsemblGene == '',]$EnsemblGene <- 'ENSG00000228623'
+  
+
+new_fasta <- rbind(uniq_bm_gene_names,
+                   rep_bm_gene_names[ ,colnames(rep_bm_gene_names)[ !(colnames(rep_bm_gene_names) %in% 'gene_ensg')],]
+)
+
+
+#Not in BioMart Object: (N = 5,017)
+notin_bm_gene_names <- Translation[ !(Translation$SYMBOL %in% names(table(bm$hgnc_symbol))), ]
+
+notin_bm_gene_names_fix <- notin_bm_gene_names[
+  notin_bm_gene_names$EnsemblGene %in% bm$ensembl_gene_id,
+]
+
+for( rows in 1:dim(notin_bm_gene_names_fix)[1]){
+  notin_bm_gene_names_fix[rows,]$SYMBOL <- bm[ bm$ensembl_gene_id == notin_bm_gene_names_fix[rows,]$EnsemblGene,]$hgnc_symbol
+}
+
+new_fasta <- rbind(new_fasta,notin_bm_gene_names_fix)
+new_fasta[ new_fasta$SYMBOL == 'TBCE',]$EnsemblGene <- 'ENSG00000285053'
+
+All_names <- c(row.names(LFQ$Banner$AdjEXP), 
+  row.names(LFQ$Blsa$ScalWins),
+  row.names(LFQ$Mayo$ScalWins),
+  row.names(LFQ$Msbb$ScalWins),
+  row.names(TMT$TMT_banner_BA9$ScalWins),
+  row.names(TMT$TMT_rosmap_BA9$ScalWins),
+  row.names(TMT$TMT_emory_BA24$ScalWins),
+  row.names(TMT$TMT_emory_BA9$ScalWins),
+  row.names(TMT$TMT_msbb_BA36$ScalWins),
+  row.names(TMT$TMT_rosmap_BA6$ScalWins),
+  row.names(TMT$TMT_rosmap_BA37$ScalWins)
+)
+
+total_names <- All_names[!duplicated(All_names)]
+
+table(total_names %in% new_fasta$ProteomicsID)
+table(total_names %in% remainder$ProteomicsID)
+
+Omics_Translation <- new_fasta[,c('ProteomicsID', 'UniprotID', 'SYMBOL', 'EnsemblGene')]
+
+total_names[!(total_names%in%Omics_Translation$ProteomicsID)]
+
+
+table(grepl( 'CON__', row.names(LFQ$Banner$AdjEXP)))
+table(grepl( 'CON__', row.names(LFQ$Blsa$AdjEXP)))
+table(grepl( 'CON__', row.names(LFQ$Mayo$AdjEXP)))
+table(grepl( 'CON__', row.names(LFQ$Msbb$AdjEXP)))
+table(grepl( 'CON__', row.names(TMT$TMT_banner_BA9$ScalWins)))
+table(grepl( 'CON__', row.names(TMT$TMT_rosmap_BA9$ScalWins)))
+table(grepl( 'CON__', row.names(TMT$TMT_emory_BA24$ScalWins)))
+table(grepl( 'CON__', row.names(TMT$TMT_emory_BA9$ScalWins)))
+table(grepl( 'CON__', row.names(TMT$TMT_msbb_BA36$ScalWins)))
+table(grepl( 'CON__', row.names(TMT$TMT_rosmap_BA6$ScalWins)))
+table(grepl( 'CON__', row.names(TMT$TMT_rosmap_BA37$ScalWins)))
+
+
+############################ Issues: 
+
+remainder <- notin_bm_gene_names[
+  !(notin_bm_gene_names$EnsemblGene %in% bm$ensembl_gene_id),
+]
+
+remainder[1,]$UniprotID 
+remainder[1,]$SYMBOL <- 
+Q8N655
+
+table( notin_bm_gene_names$SYMBOL %in% bm$hgnc_symbol)
+table( notin_bm_gene_names$EnsemblGene %in% bm$ensembl_gene_id)
+
+
+
+
+names(table(bm$hgnc_symbol)[table(bm$hgnc_symbol) ==1 ])[names(table(bm$hgnc_symbol)[table(bm$hgnc_symbol) >1 ]) %in% Translation$SYMBOL]
+
+
+### Genes with more than one entry in BioMart
+Rep_Issues <- c("ABCF2", "AHRR", "ATXN7", "CCDC39", "DIABLO", "ECE2", "GGT1", "GOLGA8M", "HSPA14", 
+  "MATR3", "PDE11A", "PINX1", "POLR2J3", "PRSS50", "SFTA3", "SOD2", "TBCE", "TMSB15B", "ZNF883")
+
+head(bm[bm$hgnc_symbol %in%Rep_Issues,])
+
+
+########################################################################################################################
+table(bm$hgnc_symbol %in% Translation$SYMBOL)
+table( Translation$SYMBOL %in% bm$hgnc_symbol)
+
+head(Translation[ bm$hgnc_symbol %in% Translation$hgnc_symbol,])
+# 18661 (30.1%)
+bm[bm$hgnc_symbol == 'EIF3C',]
+
+
+table(bm$ensembl_gene_id %in% Translation$EnsemblGene)
+# 20037 (33.1%)
+table(bm$hgnc_symbol %in% Translation$SYMBOL)
+
+Translation[Translation$SYMBOL =='A2M',]
+Translation[Translation$hgnc_symbol =='A2M',]
+
+
+sum( table(table(Translation$SYMBOL)) )
+
+sum( table(table(Translation$hgnc_symbol)) )
+
+
 
 head(Translation[Translation$SYMBOL==0,])
 dim(Translation[Translation$SYMBOL==0,])
