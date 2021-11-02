@@ -1058,7 +1058,7 @@ thisFile <- githubr::getPermlink(repository = thisRepo, repositoryPath=paste0('c
 ENRICH_OBJ <-  synapser::synStore( 
   synapser::File(
     path = 'Feature_Translation.RData',
-    name = 'Proteomics/Transcriptomics ID Translation',
+    name = 'Proteomics to Transcriptomics ID Translation',
     parentId=parentId 
   ),
   activity = synapser::Activity( 
