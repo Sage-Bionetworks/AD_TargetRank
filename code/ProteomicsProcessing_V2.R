@@ -679,18 +679,18 @@ foo$Age <- signif(foo$Age,5)
 foo$PMI <- signif(foo$PMI,4)
 
 foo_2  <- foo[!duplicated(foo),]
-
+sink<-tmt_meta_data$TMT_banner_BA9
 
 ######### Fix Scaled Wins...
-Proteomics <- c('syn25006659', 'syn25006659', 'syn25006639', 'syn25006631', 'syn25006652', 'syn25006866', 'syn25006867')
+Proteomics <- c('syn25006659','syn25006659', 'syn25006639', 'syn25006631', 'syn25006652', 'syn25006866', 'syn25006867')
 names(Proteomics) <- c(
-  'TMT_rosmap_BA9', 'TMT_banner_BA9', 'TMT_emory_BA24', 'TMT_emory_BA9',
+  'TMT_banner_BA9', 'TMT_rosmap_BA9', 'TMT_emory_BA24', 'TMT_emory_BA9',
   'TMT_msbb_BA36', 'TMT_rosmap_BA6','TMT_rosmap_BA37')
 
 
 exp <- list(
-  'TMT_rosmap_BA9' = NULL, 
   'TMT_banner_BA9' = NULL,
+  'TMT_rosmap_BA9' = NULL, 
   'TMT_emory_BA24' = NULL,
   'TMT_emory_BA9'  = NULL,
   'TMT_msbb_BA36' = NULL,
@@ -698,15 +698,16 @@ exp <- list(
   'TMT_rosmap_BA37'  = NULL
 )
 
+row.names(tmt_meta_data$TMT_banner_BA9) <- gsub('banner.','', row.names(tmt_meta_data$TMT_banner_BA9))
 
 exp[[names(Proteomics)[1]]] <- counts_load_v1( as.character(Proteomics[1]) )
-exp[[names(Proteomics)[1]]] <- exp[[names(Proteomics)[1]]][,colnames(exp[[names(Proteomics)[1]]])[grepl('rosmap.',colnames(exp[[names(Proteomics)[1]]]))]]
-colnames(exp[[names(Proteomics)[1]]]) <- gsub('rosmap.','',colnames(exp[[names(Proteomics)[1]]]))
+exp[[names(Proteomics)[1]]] <- exp[[names(Proteomics)[1]]][,colnames(exp[[names(Proteomics)[1]]])[grepl('banner.',colnames(exp[[names(Proteomics)[1]]]))]]
+colnames(exp[[names(Proteomics)[1]]]) <- gsub('banner.','',colnames(exp[[names(Proteomics)[1]]]))
 tmt_meta_data[[names(Proteomics)[1]]] <- tmt_meta_data[[names(Proteomics)[1]]][colnames(exp[[names(Proteomics)[1]]]), ]
 
 exp[[names(Proteomics)[2]]] <- counts_load_v1( as.character(Proteomics[2]) )
-exp[[names(Proteomics)[2]]] <- exp[[names(Proteomics)[2]]][,colnames(exp[[names(Proteomics)[2]]])[grepl('banner.',colnames(exp[[names(Proteomics)[2]]]))]]
-colnames(exp[[names(Proteomics)[2]]]) <- gsub('banner.','',colnames(exp[[names(Proteomics)[2]]]))
+exp[[names(Proteomics)[2]]] <- exp[[names(Proteomics)[2]]][,colnames(exp[[names(Proteomics)[2]]])[grepl('rosmap.',colnames(exp[[names(Proteomics)[2]]]))]]
+colnames(exp[[names(Proteomics)[2]]]) <- gsub('rosmap.','',colnames(exp[[names(Proteomics)[2]]]))
 tmt_meta_data[[names(Proteomics)[2]]] <- tmt_meta_data[[names(Proteomics)[2]]][colnames(exp[[names(Proteomics)[2]]]), ]
 
 exp[[names(Proteomics)[3]]] <- counts_load_v2( as.character(Proteomics[3]) )
