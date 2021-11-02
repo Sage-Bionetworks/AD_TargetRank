@@ -1069,5 +1069,5 @@ ENRICH_OBJ <-  synapser::synStore(
   )
 )
 
-file.remove('Proteomics_Data.RData')
+file.remove('Feature_Translation.RData')
 
