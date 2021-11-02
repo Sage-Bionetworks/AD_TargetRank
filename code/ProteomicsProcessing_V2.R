@@ -870,7 +870,6 @@ Translation[Translation$SYMBOL==0,]$fixed <- 'Yes'
 ## Load a Biomart Object from our RNA-Seq pipeline to harmonize ENSGs to current ENSGs
 bm <- read.table( file = synapser::synGet('syn26340639')$path, header = T, sep='\t')
 
-
 ####### Split into those with gene symbol in bioMart (N = 85,394) and those not in Biomart (N = 5,017)
 # N = 85,265
 uniq_bm_gene_names <- Translation[ Translation$SYMBOL %in% names(table(bm$hgnc_symbol)[table(bm$hgnc_symbol) ==1 ]), ]
@@ -929,176 +928,146 @@ Omics_Translation <- new_fasta[,c('ProteomicsID', 'UniprotID', 'SYMBOL', 'Ensemb
 
 total_names[!(total_names%in%Omics_Translation$ProteomicsID)]
 
+Omics_addons <- as.data.frame(matrix(
+  NA,
+  length(total_names[!(total_names%in%Omics_Translation$ProteomicsID)]),
+  4
+))
+colnames(Omics_addons) <- colnames(Omics_Translation)
+Omics_addons$ProteomicsID <- total_names[!(total_names%in%Omics_Translation$ProteomicsID)]
 
-table(grepl( 'CON__', row.names(LFQ$Banner$AdjEXP)))
-table(grepl( 'CON__', row.names(LFQ$Blsa$AdjEXP)))
-table(grepl( 'CON__', row.names(LFQ$Mayo$AdjEXP)))
-table(grepl( 'CON__', row.names(LFQ$Msbb$AdjEXP)))
-table(grepl( 'CON__', row.names(TMT$TMT_banner_BA9$ScalWins)))
-table(grepl( 'CON__', row.names(TMT$TMT_rosmap_BA9$ScalWins)))
-table(grepl( 'CON__', row.names(TMT$TMT_emory_BA24$ScalWins)))
-table(grepl( 'CON__', row.names(TMT$TMT_emory_BA9$ScalWins)))
-table(grepl( 'CON__', row.names(TMT$TMT_msbb_BA36$ScalWins)))
-table(grepl( 'CON__', row.names(TMT$TMT_rosmap_BA6$ScalWins)))
-table(grepl( 'CON__', row.names(TMT$TMT_rosmap_BA37$ScalWins)))
+######### Fix One at a time manually....
+Omics_addons[1,2:4] <- c('O00139', 'KIF2A', 'ENSG00000068796')
+Omics_addons[2,2:4] <- c('Q9UPP5', 'KIAA1107', NA)
+Omics_addons[3,2:4] <- c('Q8NCW5', 'NAXE', 'ENSG00000163382')
+Omics_addons[4,2:4] <- c('B4DLN1', 'AC139530.3', 'ENSG00000262660')
+Omics_addons[5,2:4] <- c('E9PAV3', 'NACA', 'ENSG00000196531')
+Omics_addons[6,2:4] <- c('Q9C0E8', 'LNPK', 'ENSG00000144320')
+Omics_addons[7,2:4] <- c('F5H5P2', 'AC011462.1', 'ENSG00000255730')
+Omics_addons[8,2:4] <- c('F8W031', 'AC073896.1', 'ENSG00000144785')
+Omics_addons[9,2:4] <- c('H3BN98', 'AC138811.2', 'ENSG00000260342')
+Omics_addons[10,2:4] <- c('H0YIV9', 'AL021546.1', 'ENSG00000111780')
+Omics_addons[11,2:4] <- c('A2RTX5', 'TARSL2', 'ENSG00000185418')
+Omics_addons[12,2:4] <- c('O00142', 'TK2', 'ENSG00000166548')
+Omics_addons[13,2:4] <- c('A5YM72', 'CARNS1', 'ENSG00000172508')
+Omics_addons[14,2:4] <- c('A6NHL2', 'TUBAL3', 'ENSG00000178462')
+Omics_addons[15,2:4] <- c('P30711', 'GSTT1', 'ENSG00000277656')
+Omics_addons[16,2:4] <- c('A3KMH1', 'VWA8', 'ENSG00000102763')
+Omics_addons[17,2:4] <- c('Q5VZK9', 'CARMIL1', 'ENSG00000079691')
+Omics_addons[18,2:4] <- c('P01619', 'IGKV3-20', 'ENSG00000239951')
+Omics_addons[19,2:4] <- c('H0Y858', 'AC097637.1', 'ENSG00000173366')
+Omics_addons[20,2:4] <- c('A5YKK6', 'CNOT1', 'ENSG00000125107')
+Omics_addons[21,2:4] <- c('A2RRP1', 'NBAS', 'ENSG00000151779')
+Omics_addons[22,2:4] <- c('O60260', 'PRKN', 'ENSG00000185345')
+Omics_addons[23,2:4] <- c('P01766', 'IGHV3-13', 'ENSG00000211942')
+Omics_addons[24,2:4] <- c('P05067', 'APP', 'ENSG00000142192')
+Omics_addons[25,2:4] <- c('A6NHL2', 'TUBAL3', 'ENSG00000178462')
+Omics_addons[26,2:4] <- c('O00139', 'KIF2A', 'ENSG00000068796')
+Omics_addons[27,2:4] <- c('Q5TGZ0', 'MICOS10', 'ENSG00000173436')
+Omics_addons[28,2:4] <- c('O00142', 'TK2', 'ENSG00000166548')
+Omics_addons[29,2:4] <- c('A6NHX0', 'CASTOR2', 'ENSG00000274070')
+Omics_addons[30,2:4] <- c('A1Z1Q3', 'MACROD2', 'ENSG00000172264')
+Omics_addons[31,2:4] <- c('A5PKW4', 'PSD', 'ENSG00000059915')
+Omics_addons[32,2:4] <- c('A7KAX9', 'ARHGAP32', 'ENSG00000134909')
+Omics_addons[33,2:4] <- c('A5YKK6', 'CNOT1', 'ENSG00000125107')
+Omics_addons[34,2:4] <- c('A5YM72', 'CARNS1', 'ENSG00000172508')
+Omics_addons[35,2:4] <- c('O60241', 'ADGRB2', 'ENSG00000121753')
+Omics_addons[36,2:4] <- c('P55196', 'AFDN', 'ENSG00000130396')
+Omics_addons[37,2:4] <- c('Q96D05', 'FAM241B', 'ENSG00000171224')
+Omics_addons[38,2:4] <- c('Q96PC5', 'MIA2', 'ENSG00000150527')
+Omics_addons[39,2:4] <- c('A6NHR9', 'SMCHD1', 'ENSG00000101596')
+Omics_addons[40,2:4] <- c('P55196', 'AFDN', 'ENSG00000130396')
+Omics_addons[41,2:4] <- c('Q92890', 'UFD1', 'ENSG00000070010')
+Omics_addons[42,2:4] <- c('A6NIZ1', 'AC113404.3', 'ENSG00000254893')
+Omics_addons[43,2:4] <- c('G3V599', 'MIA2', 'ENSG00000150527')
+Omics_addons[44,2:4] <- c('Q86YV5', 'PRAG1', 'ENSG00000275342')
+Omics_addons[45,2:4] <- c('Q9BR61', 'ACBD6', 'ENSG00000230124')
+Omics_addons[46,2:4] <- c('A4D161', 'FAM221A', 'ENSG00000188732')
+Omics_addons[47,2:4] <- c('A6XGL0', 'YJEFN3', 'ENSG00000250067')
+Omics_addons[48,2:4] <- c('A9UHW6', 'MIF4GD', 'ENSG00000125457')
+Omics_addons[49,2:4] <- c('P01602', 'IGKV1-5', 'ENSG00000243466')
+Omics_addons[50,2:4] <- c('P06312', 'IGKV4-1', 'ENSG00000211598')
+Omics_addons[51,2:4] <- c('P01619', 'IGKV3-20', 'ENSG00000239951')
+Omics_addons[52,2:4] <- c('P01764', 'IGHV3-23', 'ENSG00000211949')
+Omics_addons[53,2:4] <- c('P01619', 'IGKV3-20', 'ENSG00000239951')
+Omics_addons[54,2:4] <- c('P80748', 'IGLV3-21', 'ENSG00000211662')
+Omics_addons[55,2:4] <- c('P01717', 'IGLV3-25', 'ENSG00000211659')
+Omics_addons[56,2:4] <- c('P01714', 'IGLV3-19', 'ENSG00000211663')
+Omics_addons[57,2:4] <- c('Q69YL0', 'NCBP2AS2', 'ENSG00000270170')
+Omics_addons[58,2:4] <- c('P01762', 'IGHV3-11', 'ENSG00000211941')
+Omics_addons[59,2:4] <- c('P01742', 'IGHV1-69', 'ENSG00000211973')
+Omics_addons[60,2:4] <- c('P01768', 'IGHV3-30', 'ENSG00000270550')
+Omics_addons[61,2:4] <- c('Q674X7', 'KAZN', 'ENSG00000189337')
+Omics_addons[62,2:4] <- c('P01703', 'IGLV1-40', 'ENSG00000211653')
+Omics_addons[63,2:4] <- c('A5YM72', 'CARNS1', 'ENSG00000172508')
+Omics_addons[64,2:4] <- c('P01593', 'IGKV1D-33', 'ENSG00000239975')
+Omics_addons[65,2:4] <- c('P06312', 'IGKV4-1', 'ENSG00000211598')
+Omics_addons[66,2:4] <- c('P06331', 'IGHV4-34', 'ENSG00000211956')
+Omics_addons[67,2:4] <- c('P01742', 'IGHV1-69', 'ENSG00000211973')
+Omics_addons[68,2:4] <- c('P23083', 'IGHV1-2', 'ENSG00000211934')
+Omics_addons[69,2:4] <- c('P01766', 'IGHV3-13', 'ENSG00000211942')
+Omics_addons[70,2:4] <- c('Q641Q2', 'WASHC2A', 'ENSG00000099290')
+Omics_addons[71,2:4] <- c('P01780', 'IGHV3-7', 'ENSG00000211938')
+Omics_addons[72,2:4] <- c('P01593', 'IGKV1D-33', 'ENSG00000239975')
+Omics_addons[73,2:4] <- c('P01619', 'IGKV3-20', 'ENSG00000239951')
+Omics_addons[74,2:4] <- c('P01764', 'IGHV3-23', 'ENSG00000211949')
+Omics_addons[75,2:4] <- c('A0A0B4J1W5', 'GPR75-ASB3', 'ENSG00000270898')
+Omics_addons[76,2:4] <- c('P01611', 'IGKV1D-12', 'ENSG00000278857')
+Omics_addons[77,2:4] <- c('P04430', 'IGKV1-16', 'ENSG00000240864')
+Omics_addons[78,2:4] <- c('P01619', 'IGKV3-20', 'ENSG00000239951')
+Omics_addons[79,2:4] <- c('P01700', 'IGLV1-47', 'ENSG00000211648')
+Omics_addons[80,2:4] <- c('P04207', 'IGKV3-15', 'ENSG00000244437')
+Omics_addons[81,2:4] <- c('P04434', NA, NA)
+Omics_addons[82,2:4] <- c('A5PLN9', 'TRAPPC13', 'ENSG00000113597')
+Omics_addons[83,2:4] <- c('P01700', 'IGLV1-47', 'ENSG00000211648')
+############################ Finalize: 
+
+proteomics <- as.data.frame(rbind(Omics_Translation,Omics_addons))
+unannotated <- remainder[ !(remainder$ProteomicsID %in% proteomics$ProteomicsID), ]
+
+size <- dim(bm[ !(bm$ensembl_gene_id %in% proteomics$EnsemblGene), ])[1]
+transcriptomics_only <- data.frame(matrix(NA,size,4))
+colnames(transcriptomics_only) <- colnames(proteomics)
+transcriptomics_only$EnsemblGene <- bm[ !(bm$ensembl_gene_id %in% proteomics$EnsemblGene), ]$ensembl_gene_id
+transcriptomics_only$SYMBOL <- bm[ !(bm$ensembl_gene_id %in% proteomics$EnsemblGene), ]$hgnc_symbol
+
+total_features <- data.frame(rbind(proteomics,transcriptomics_only))
+
+feature_translation <- list(
+  Proteomics = proteomics,
+  Total_features = total_features,
+  Transcriptomics = bm,
+  unannotated_proteomics = unannotated
+)
+
+#Push to synapse
+save(feature_translation, file = 'Feature_Translation.RData')
+
+syns_used <- c('syn26428681', 'syn26340639')
+
+parentId <- 'syn26428679'
+activityName = 'Proteomics to Transcriptomics Translation';
+activityDescription = 'Contains all entities that translate between proteomics and transcriptomics';
+thisFileName <- 'ProteomicsProcessing_V2.R'
+
+# Github link
+thisRepo <- githubr::getRepo(repository = "Sage-Bionetworks/AD_TargetRank", ref="branch", refName='master')
+thisFile <- githubr::getPermlink(repository = thisRepo, repositoryPath=paste0('code/',thisFileName))
 
 
-############################ Issues: 
+ENRICH_OBJ <-  synapser::synStore( 
+  synapser::File(
+    path = 'Feature_Translation.RData',
+    name = 'Proteomics/Transcriptomics ID Translation',
+    parentId=parentId 
+  ),
+  activity = synapser::Activity( 
+    used = syns_used, 
+    name = activityName, 
+    executed = thisFile, 
+    description = activityDescription
+  )
+)
 
-remainder <- notin_bm_gene_names[
-  !(notin_bm_gene_names$EnsemblGene %in% bm$ensembl_gene_id),
-]
+file.remove('Proteomics_Data.RData')
 
-remainder[1,]$UniprotID 
-remainder[1,]$SYMBOL <- 
-Q8N655
-
-table( notin_bm_gene_names$SYMBOL %in% bm$hgnc_symbol)
-table( notin_bm_gene_names$EnsemblGene %in% bm$ensembl_gene_id)
-
-
-
-
-names(table(bm$hgnc_symbol)[table(bm$hgnc_symbol) ==1 ])[names(table(bm$hgnc_symbol)[table(bm$hgnc_symbol) >1 ]) %in% Translation$SYMBOL]
-
-
-### Genes with more than one entry in BioMart
-Rep_Issues <- c("ABCF2", "AHRR", "ATXN7", "CCDC39", "DIABLO", "ECE2", "GGT1", "GOLGA8M", "HSPA14", 
-  "MATR3", "PDE11A", "PINX1", "POLR2J3", "PRSS50", "SFTA3", "SOD2", "TBCE", "TMSB15B", "ZNF883")
-
-head(bm[bm$hgnc_symbol %in%Rep_Issues,])
-
-
-########################################################################################################################
-table(bm$hgnc_symbol %in% Translation$SYMBOL)
-table( Translation$SYMBOL %in% bm$hgnc_symbol)
-
-head(Translation[ bm$hgnc_symbol %in% Translation$hgnc_symbol,])
-# 18661 (30.1%)
-bm[bm$hgnc_symbol == 'EIF3C',]
-
-
-table(bm$ensembl_gene_id %in% Translation$EnsemblGene)
-# 20037 (33.1%)
-table(bm$hgnc_symbol %in% Translation$SYMBOL)
-
-Translation[Translation$SYMBOL =='A2M',]
-Translation[Translation$hgnc_symbol =='A2M',]
-
-
-sum( table(table(Translation$SYMBOL)) )
-
-sum( table(table(Translation$hgnc_symbol)) )
-
-
-
-head(Translation[Translation$SYMBOL==0,])
-dim(Translation[Translation$SYMBOL==0,])
-  # 1202
-
-inds <- row.names(Translation[Translation$SYMBOL==0,][
-  (Translation[Translation$SYMBOL==0,]$ID..isoform..removed.ifpresent. %in%  y$uniprotswissprot),
-])
-fix <- Translation[inds,]
-
-lookup <- function( rw ){
-  if(rw$Source=='sp'){
-    if(rw$ID..isoform..removed.ifpresent. %in% y$uniprotswissprot){
-      if( length(y[ y$uniprotswissprot == rw$ID..isoform..removed.ifpresent., ]$hgnc_symbol) > 1 ){
-        cans <- y[ y$uniprotswissprot == rw$ID..isoform..removed.ifpresent., ]$hgnc_symbol
-        if(length(cans[!duplicated(cans)])==1){
-          rw$SYMBOL <- y[ y$uniprotswissprot == rw$ID..isoform..removed.ifpresent., ]$hgnc_symbol[1]
-        }else{
-          
-        }
-      }
-      else{
-        rw$SYMBOL <- y[ y$uniprotswissprot == rw$ID..isoform..removed.ifpresent., ]$hgnc_symbol
-      }
-    }
-  }else{
-    if(rw$Source=='sp'){
-      if( rw$ID..isoform..removed.ifpresent. %in% x$uniprotsptrembl ){
-        rw$SYMBOL <- x[ x$uniprotsptrembl == rw$ID..isoform..removed.ifpresent., ]$hgnc_symbol
-      }
-    }
-  }
-  return(rw)
-}
-
-fixed <- fix
-for(i in 1:dim(fix)[1]){
-  fixed[i,] <- lookup(fix[i,])
-}
-
-Translation[inds,] <- fixed[inds,]
-##########################
-# Now I over annotated it.... WTF
-
-
-
-
-table(Translation[Translation$SYMBOL==0,]$ID..isoform..removed.ifpresent. %in%  x$uniprotsptrembl)
-table(Translation[Translation$SYMBOL==0,]$ID..isoform..removed.ifpresent. %in%  c(y$uniprotswissprot, x$uniprotsptrembl))
-head(Translation[Translation$SYMBOL==0,][!(Translation[Translation$SYMBOL==0,]$ID..isoform..removed.ifpresent. %in%  c(y$uniprotswissprot, x$uniprotsptrembl)),])
-
-
-
-
-table(TMT$X %in% paste0(Translation$SYMBOL, '|', Translation$UniprotID))
-head(TMT[ !(TMT$X %in% paste0(Translation$SYMBOL, '|', Translation$UniprotID)),][,1:4])
-
-
-head(TMT[ !(TMT$X %in% paste0(Translation$SYMBOL, '|', Translation$UniprotID)),][,1:4])
-head(Translation[Translation$SYMBOL==0,])
-
-y[y$uniprotswissprot == 'O00139',]
-
-table(TMT$X %in% paste0(Translation$hgnc_symbol, '|', Translation$UniprotID))
-
-table(Translation[Translation$Source == 'tr', ]$UniprotID %in% x$uniprotsptrembl)
-# FALSE  TRUE 
-# 3453 44860 
-table(Translation[Translation$Source == 'sp', ]$UniprotID %in% y$uniprotswissprot)
-
-# Load Our ENSG GTF:
-gtf <- synapser::synGet('syn20692159',version=9)
-
-biom <- GenomicTools.fileHandler::importGTF(file=gtf$path,
-                                            level="gene",
-                                            features=c("gene_id",
-                                                       "gene_name",
-                                                       "gene_type"))
-
-biom$ensg <- do.call(rbind,strsplit(biom$gene_id, '[.]'))[,1]
-biom$comb <- paste0(biom$gene_name,'_',biom$ensg)
-
-Translation$comb <- paste0(Translation$SYMBOL,'_',Translation$EnsemblGene)
-Translation$combb <- paste0(Translation$hgnc_symbol,'_',Translation$EnsemblGene)
-
-table(biom$ensg %in% Translation$EnsemblGene)
-# FALSE  TRUE 
-# 40547 20056 
-table(biom$gene_name %in% Translation$hgnc_symbol)
-# FALSE  TRUE 
-# 41924 18679 
-table(biom$gene_name %in% Translation$SYMBOL)
-# FALSE  TRUE 
-# 41363 19240 
-
-table(biom$comb %in% Translation$comb)
-# FALSE  TRUE 
-# 41854 18749
-
-table(biom$comb %in% Translation$combb)
-# FALSE  TRUE 
-# 60597     6 
-
-head(biom[ biom$gene_name %in% Translation$hgnc_symbol, ])
-head(Translation[ Translation$hgnc_symbol  %in% biom$gene_name, ])
-head(Translation[ Translation$SYMBOL  %in% biom$gene_name, ])
-
-gene_annot <- as.data.frame(biom)
-table(table(gene_annot$gene_name))
-table(table(gene_annot$gene_id))
-gene_annot[ gene_annot$gene_name == names(table(gene_annot$gene_name)[table(gene_annot$gene_name)==9]), ]
