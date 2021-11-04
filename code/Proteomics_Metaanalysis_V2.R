@@ -328,28 +328,62 @@ plot( log(abs( tWork[ tWork$Sig == 'YES' & tWork$Type == 'Predicted Weight', ]$T
 parentId = 'syn22351719';
 activityName = 'Meta analysis of differential Proteomics Data';
 activityDescription = 'Fixed and random effect meta-analysis of AMP-AD Proteomics Data (4 brain regions )';
-thisFileName <- 'ProteomicsProcessing_MetaModalityAnalysis_V2.R'
+thisFileName <- 'Proteomics_Metaanalysis_V2.R'
 
 # Github link
 thisRepo <- githubr::getRepo(repository = "Sage-Bionetworks/AD_TargetRank", ref="branch", refName='master')
 thisFile <- githubr::getPermlink(repository = thisRepo, repositoryPath=paste0('code/',thisFileName))
 
-CODE <- syn_temp$store(synapseclient$Folder(name = "MetaAnalysis", parentId = parentId))
+CODE <- synapser::synGet('syn22414618')
 Syns_Used <- c( 'syn24216770', 'syn21266454', 'syn24828732', 'syn24828686', 'syn24828683', 'syn24828684', 'syn24828685',
                 'syn21323404', 'syn21323366', 'syn23583548', 'syn3191087', 'syn23573928', 'syn18914620', 'syn18914694',
                 'syn18918327', 'syn23277389', 'syn20827192', 'syn23474101', 'syn18914935', 'syn22344998', 'syn6101474',
-                'syn21893059', 'syn18914939')
+                'syn21893059', 'syn18914939', 'syn26427476', 'syn26433992'
+)
 
 # Write results to files
-data.table::fwrite(meta.anlz.ad_cntrl, file = 'Raw_Proteomics_meta.anlz.ad_cntrl.tsv', sep = '\t', row.names = F, quote = F)
-ENRICH_OBJ <-  syn_temp$store( synapseclient$File( path='Raw_Proteomics_meta.anlz.ad_cntrl.tsv', name = 'Proteomics AD-Control meta-analysis across 4 brain regions', parentId=CODE$properties$id ), used = Syns_Used, activityName = activityName, executed = thisFile, activityDescription = activityDescription)
+data.table::fwrite(
+  meta.anlz.ad_cntrl, 
+  file = 'Raw_Proteomics_meta.anlz.ad_cntrl.tsv', 
+  sep = '\t', row.names = F, quote = F
+)
+ENRICH_OBJ <-  synapser::synStore(
+  synapser::File(
+    path='Raw_Proteomics_meta.anlz.ad_cntrl.tsv', 
+    name = 'Proteomics AD-Control meta-analysis across 4 brain regions', 
+    parentId=CODE$properties$id ), 
+  used = Syns_Used, activityName = activityName, 
+  executed = thisFile, activityDescription = activityDescription)
 
-data.table::fwrite(Process_Meta, file = 'Processed_Proteomics_meta.anlz.ad_cntrl.tsv', sep = '\t', row.names = F, quote = F)
-ENRICH_OBJ <-  syn_temp$store( synapseclient$File( path='Raw_Proteomics_meta.anlz.ad_cntrl.tsv', name = 'Proteomics AD-Control meta-analysis across 4 brain regions', parentId=CODE$properties$id ), used = Syns_Used, activityName = activityName, executed = thisFile, activityDescription = activityDescription)
+data.table::fwrite(
+  Process_Meta, 
+  file = 'Processed_Proteomics_meta.anlz.ad_cntrl.tsv', 
+  sep = '\t', row.names = F, quote = F
+)
+ENRICH_OBJ <-  synapser::synStore(
+  synapser::File(
+    path='Raw_Proteomics_meta.anlz.ad_cntrl.tsv', 
+    name = 'Proteomics AD-Control meta-analysis across 4 brain regions', 
+    parentId=CODE$properties$id ), used = Syns_Used, 
+  activityName = activityName, executed = thisFile, 
+  activityDescription = activityDescription
+)
 
 # Write results to files
-data.table::fwrite(tWork, file = 'Proteomics_meta_Weights.ad_cntrl.tsv', sep = '\t', row.names = F, quote = F)
-ENRICH_OBJ <-  syn_temp$store( synapseclient$File( path='Proteomics_meta_Weights.ad_cntrl.tsv', name = 'Proteomics AD-Control meta-analysis Weights', parentId=CODE$properties$id ), used = Syns_Used, activityName = activityName, executed = thisFile, activityDescription = activityDescription)
+data.table::fwrite(
+  tWork, 
+  file = 'Proteomics_meta_Weights.ad_cntrl.tsv', 
+  sep = '\t', row.names = F, quote = F
+)
+ENRICH_OBJ <-  synapser::synStore(
+  synapser::File(
+    path='Proteomics_meta_Weights.ad_cntrl.tsv', 
+    name = 'Proteomics AD-Control meta-analysis Weights', 
+    parentId=CODE$properties$id ), 
+  used = Syns_Used, 
+  activityName = activityName, 
+  executed = thisFile, 
+  activityDescription = activityDescription)
 
 
 
