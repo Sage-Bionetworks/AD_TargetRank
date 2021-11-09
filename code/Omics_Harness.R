@@ -264,28 +264,28 @@ thisFile <- getPermlink(repository = thisRepo, repositoryPath=paste0('code/',thi
 CODE <- synapser::synStore(synapser::Folder(name = "Plots", parentId = parentId))
 Syns_Used <- c( 'syn22686575', 'syn22414716' )
 
-ENRICH_OBJ <- synapser::synStore( synapser::Folder( path=paste0(plots,'Target_Type_Filt.pdf'), 
+ENRICH_OBJ <- synapser::synStore( synapser::File( path=paste0(plots,'Target_Type_Filt.pdf'), 
                                                    name = 'Distribution of weights by Omics Modality', 
                                                    parentId=CODE$properties$id ), used = Syns_Used, 
                                activityName = activityName, 
                                executed = thisFile, 
                                activityDescription = activityDescription)
 
-ENRICH_OBJ <- synapser::synStore( synapser::Folder( path=paste0(plots,'Target_Type_Filt_Box.pdf'), 
+ENRICH_OBJ <- synapser::synStore( synapser::File( path=paste0(plots,'Target_Type_Filt_Box.pdf'), 
                                                    name = 'Box Plots of weights by Omics Modality', 
                                                    parentId=CODE$properties$id ), used = Syns_Used, 
                                activityName = activityName, 
                                executed = thisFile, 
                                activityDescription = activityDescription)
 
-ENRICH_OBJ <- synapser::synStore( synapser::Folder( path=paste0(plots,'Target_Type_Tot.pdf'), 
+ENRICH_OBJ <- synapser::synStore( synapser::File( path=paste0(plots,'Target_Type_Tot.pdf'), 
                                                    name = 'Distribution of weights by Omics Modality', 
                                                    parentId=CODE$properties$id ), used = Syns_Used, 
                                activityName = activityName, 
                                executed = thisFile, 
                                activityDescription = activityDescription)
 
-ENRICH_OBJ <- synapser::synStore( synapser::Folder( path=paste0(plots,'Target_Type_Tot_Box.pdf'), 
+ENRICH_OBJ <- synapser::synStore( synapser::File( path=paste0(plots,'Target_Type_Tot_Box.pdf'), 
                                                    name = 'Box Plots of weights by Omics Modality', 
                                                    parentId=CODE$properties$id ), used = Syns_Used, 
                                activityName = activityName, 
@@ -295,7 +295,7 @@ ENRICH_OBJ <- synapser::synStore( synapser::Folder( path=paste0(plots,'Target_Ty
 CODE <- synapser::synStore(synapser::Folder(name = "MetaAnalysis", parentId = 'syn22351719'))
 Syns_Used <- c( 'syn22686575', 'syn22414716' )
 
-ENRICH_OBJ <- synapser::synStore( synapser::Folder( path='~/Desktop/Projects/TREAT_AD/OmicsScores.csv', 
+ENRICH_OBJ <- synapser::synStore( synapser::File( path='~/Desktop/Projects/TREAT_AD/OmicsScores.csv', 
                                                    name = 'Omics Scores Version 2.0', 
                                                    parentId=CODE$properties$id ), used = Syns_Used, 
                                activityName = activityName, 
@@ -323,30 +323,29 @@ Comb$Predicted_Weight <- signif(Comb$Predicted_Weight , digits = 6)
 Comb$RNA_TE <- signif(Comb$RNA_TE , digits = 6)
 Comb$Pro_TE   <- signif(Comb$Pro_TE   , digits = 6)
 
-cols = list( synapseclient$Column( name='ENSG', columnType='STRING', maximumSize=20),
-             synapseclient$Column( name='GName', columnType='STRING', maximumSize=40),
-             synapseclient$Column( name='RNA_TE', columnType='STRING', maximumSize=20),
-             synapseclient$Column( name='RNA_fdr_CorPVal', columnType='STRING', maximumSize=20),
-             synapseclient$Column( name='RNA_Sig', columnType='STRING', maximumSize=20),
-             synapseclient$Column( name='RNA_Direction', columnType='STRING', maximumSize=20),
-             synapseclient$Column( name='RNA_Weight', columnType='STRING', maximumSize=20),
-             synapseclient$Column( name='Pro_TE', columnType='STRING', maximumSize=20),
-             synapseclient$Column( name='Pro_fdr_CorPVal', columnType='STRING', maximumSize=20),
-             synapseclient$Column( name='Pro_Sig', columnType='STRING', maximumSize=20),
-             synapseclient$Column( name='Pro_Direction', columnType='STRING', maximumSize=20),
-             synapseclient$Column( name='Pro_Weight', columnType='STRING', maximumSize=20),
-             synapseclient$Column( name='Harness', columnType='STRING', maximumSize=20),
-             synapseclient$Column( name='Rank', columnType='STRING', maximumSize=20),
-             synapseclient$Column( name='Predicted_Weight', columnType='STRING', maximumSize=20),
-             synapseclient$Column( name='TYPE', columnType='STRING', maximumSize=20),
-             synapseclient$Column( name='Final_Weight', columnType='STRING', maximumSize=20),
-             synapseclient$Column( name='OmicsScore', columnType='STRING', maximumSize=20)
+cols = list( synapser::Column( name='ENSG', columnType='STRING', maximumSize=20),
+             synapser::Column( name='GName', columnType='STRING', maximumSize=40),
+             synapser::Column( name='RNA_TE', columnType='STRING', maximumSize=20),
+             synapser::Column( name='RNA_fdr_CorPVal', columnType='STRING', maximumSize=20),
+             synapser::Column( name='RNA_Sig', columnType='STRING', maximumSize=20),
+             synapser::Column( name='RNA_Direction', columnType='STRING', maximumSize=20),
+             synapser::Column( name='RNA_Weight', columnType='STRING', maximumSize=20),
+             synapser::Column( name='Pro_TE', columnType='STRING', maximumSize=20),
+             synapser::Column( name='Pro_fdr_CorPVal', columnType='STRING', maximumSize=20),
+             synapser::Column( name='Pro_Sig', columnType='STRING', maximumSize=20),
+             synapser::Column( name='Pro_Direction', columnType='STRING', maximumSize=20),
+             synapser::Column( name='Pro_Weight', columnType='STRING', maximumSize=20),
+             synapser::Column( name='Harness', columnType='STRING', maximumSize=20),
+             synapser::Column( name='Rank', columnType='STRING', maximumSize=20),
+             synapser::Column( name='Predicted_Weight', columnType='STRING', maximumSize=20),
+             synapser::Column( name='TYPE', columnType='STRING', maximumSize=20),
+             synapser::Column( name='Final_Weight', columnType='STRING', maximumSize=20),
+             synapser::Column( name='OmicsScore', columnType='STRING', maximumSize=20)
            )
 
-
-write.csv( Comb, '~/Desktop/Projects/TREAT_AD/OmicsScores.csv', 
+write.csv( Comb, 'OmicsScores.csv', 
            row.names = F, quote = F)
-schema = synapseclient$Schema(name='Omics Scores Version 2.0', columns=cols, parent='syn21532474')
-table = synapseclient$Table(schema, "OmicsTable.csv")
-table = syn_temp$store(table)
+schema = synapser::Schema(name='Omics Scores Version 3.0', columns=cols, parent='syn21532474')
+table = synapser::Table(schema, "OmicsScores.csv")
+synapser::synStore(table)
   
