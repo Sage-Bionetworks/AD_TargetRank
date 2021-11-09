@@ -1,14 +1,23 @@
 # Code to Combine RNA and Proteomics Weights and Apply Scoring Harness
 library(biomaRt)
 
-reticulate::use_python("/usr/bin/python", required = TRUE)
-synapseclient <- reticulate::import("synapseclient")
-syn_temp <- synapseclient$Synapse()
-syn_temp$login()
+#reticulate::use_python("/usr/bin/python", required = TRUE)
+#synapseclient <- reticulate::import("synapseclient")
+#syn_temp <- synapseclient$Synapse()
+#syn_temp$login()
 
-Prot <- read.table( syn_temp$get('syn22686575')$path, header=T, sep='\t', stringsAsFactors=F)
-RNA  <- read.table( syn_temp$get('syn22414716')$path, header=T, sep='\t', stringsAsFactors=F)
+synapser::synLogin()
 
+Prot <- read.table( synapser::synGet('syn22686575')$path, header=T, sep='\t', stringsAsFactors=F)
+RNA  <- read.table( synapser::synGet('syn22414716')$path, header=T, sep='\t', stringsAsFactors=F)
+
+Prot[ Prot$peptide_id =='KIAA1107|Q9UPP5-2', ]$EnsemblGene <- 'ENSG00000189195'
+Prot[ Prot$peptide_id =='KIAA1107|Q9UPP5-2', ]$SYMBOL <- 'BTBD8'
+
+# Remove the one ID with no ENSG: 0|P04434
+Prot <- Prot[grepl('ENSG',Prot$EnsemblGene),]
+
+Prot$ENSG <- Prot$EnsemblGene
 ensgs <- c( Prot$ENSG, RNA$ENSG) 
 ensgs <- ensgs[ !duplicated(ensgs) ]
 
@@ -23,6 +32,33 @@ colnames( Comb ) <- c( 'ENSG', 'GName',
 Comb$ENSG <- row.names( Comb )
 
 prot <- Prot[ Prot$Type == 'Predicted Weight' , ]
+
+#Reduce Duplicated Gene Features to favor isoforms with greatest weight
+prot$keep <- 'No'
+ensgs <- prot$ENSG[!duplicated(prot$ENSG)]
+for(gene in ensgs){
+  if(as.numeric(table(gene == prot$ENSG)['TRUE']) == 1){
+    prot[ prot$ENSG %in% gene, ]$keep <- 'Yes'
+  }else{
+    #If none are significant
+    if((as.numeric(table('YES' == prot[ prot$ENSG %in% gene, ]$Sig)['FALSE']) == dim(prot[ prot$ENSG %in% gene, ])[1]) | is.na(as.numeric(table('YES' == prot[ prot$ENSG %in% gene, ]$Sig)['FALSE']))){
+      weights <- prot[ prot$ENSG %in% gene, ]$y
+      prot[ prot$ENSG %in% gene , ][1,]$keep <- 'Yes'
+    }else{
+      # If theres only one significant isoform
+      if(as.numeric(table('YES' == prot[ prot$ENSG %in% gene, ]$Sig)['TRUE']) == 1){
+        prot[ prot$ENSG %in% gene & prot$Sig == 'YES', ]$keep <- 'Yes'
+      }else{
+        # If multiple isoforms are significant
+        if(as.numeric(table('YES' == prot[ prot$ENSG %in% gene, ]$Sig)['TRUE']) > 1){
+          weights <- prot[ prot$ENSG %in% gene & prot$Sig == 'YES', ]$y_Final
+          prot[ prot$ENSG %in% gene & prot$Sig == 'YES' & prot$y_Final == max(weights), ]$keep <- 'Yes'
+        }
+      }
+    }
+  }
+}
+prot <- prot[ prot$keep == 'Yes',]
 row.names(prot) <- prot$ENSG
 
 rna <- RNA[ RNA$Type == 'Predicted Weight' , ]
@@ -33,7 +69,7 @@ Comb[ row.names(prot), ]$Pro_Direction <- prot$Direction
 Comb[ row.names(prot), ]$Pro_fdr_CorPVal <- prot$fdr.random
 Comb[ row.names(prot), ]$Pro_Sig <- prot$Sig
 Comb[ row.names(prot), ]$Pro_TE <- prot$TE.random
-Comb[ row.names(prot), ]$GName <- prot$GName
+Comb[ row.names(prot), ]$GName <- prot$SYMBOL
 Comb[ row.names(prot), ]$Pro_Weight <- prot$y
 
 #RNA Vals
@@ -116,8 +152,11 @@ for( i in 1:dim(Comb)[1] ){
   }
 }
 
-d <- density( Comb$Harness ) 
-plot(d, las =1, bty='n')
+p <- ggplot2::ggplot(Comb, ggplot2::aes(x=Harness)) + 
+  ggplot2::geom_density()
+
+#d <- density( Comb$Harness ) 
+#plot(d, las =1, bty='n')
 
 
 #Harness....
@@ -175,28 +214,28 @@ Comb <- Comb[ order(-Comb$Final_Weight), ]
 #head( Comb )
 
 #### Write to Disk:
-
-pdf('~/AD_TargetRank/Target_Type_Filt.pdf')
+plots <- '~/Desktop/Projects/TREAT_AD/Figures/'
+pdf(paste0(plots,'Target_Type_Filt.pdf'))
 ggplot( data=Comb[ Comb$RNA_Sig %in% 'YES' | Comb$Pro_Sig %in% 'YES', ] ) + 
   geom_line( aes( y = test, x=Harness  )) +
   geom_jitter( aes( y = test, x=Harness, col= TYPE),alpha = 0.4, shape = 16, size = .5, width=0.05) + 
   ylab("Weight")
 dev.off()
 
-pdf('~/AD_TargetRank/Target_Type_Filt_Box.pdf')
+pdf(paste0(plots,'Target_Type_Filt_Box.pdf'))
 ggplot() + 
   geom_violin( data=Comb[ Comb$RNA_Sig %in% 'YES' | Comb$Pro_Sig %in% 'YES', ], aes(y = test, x=TYPE, fill=TYPE) ) + 
   ylab("Weight")
 dev.off()
 
-pdf('~/AD_TargetRank/Target_Type_Tot.pdf')
+pdf(paste0(plots,'Target_Type_Tot.pdf'))
 ggplot( data=Comb ) + 
   geom_line( aes( y = test, x=Harness  )) +
   geom_jitter( aes( y = test, x=Harness, col= TYPE),alpha = 0.4, shape = 16, size = .5, width=0.05)  + 
   ylab("Weight")
 dev.off()
 
-pdf('~/AD_TargetRank/Target_Type_Tot_Box.pdf')
+pdf(paste0(plots,'Target_Type_Tot_Box.pdf'))
 ggplot() + 
   geom_violin( data=Comb, aes(y = test, x=TYPE, fill=TYPE) ) + 
   ylab("Weight")
@@ -208,7 +247,7 @@ Comb <- Comb[ , c('ENSG', 'GName', 'RNA_TE', 'RNA_fdr_CorPVal', 'RNA_Sig', 'RNA_
 colnames(Comb)[ colnames(Comb) == 'test'] <- 'Predicted_Weight'
 Comb$OmicsScore <- 2 * Comb$Final_Weight
 
-write.csv( Comb, '~/AD_TargetRank/OmicsScores.csv', 
+write.csv( Comb, '~/Desktop/Projects/TREAT_AD/OmicsScores.csv', 
            row.names = F, quote = F)
 
 parentId = 'syn22414618';
@@ -221,42 +260,42 @@ library(githubr)
 thisRepo <- getRepo(repository = "Sage-Bionetworks/AD_TargetRank", ref="branch", refName='master')
 thisFile <- getPermlink(repository = thisRepo, repositoryPath=paste0('code/',thisFileName))
 
-CODE <- syn_temp$store(synapseclient$Folder(name = "Plots", parentId = parentId))
+
+CODE <- synapser::synStore(synapser::Folder(name = "Plots", parentId = parentId))
 Syns_Used <- c( 'syn22686575', 'syn22414716' )
 
-
-ENRICH_OBJ <-  syn_temp$store( synapseclient$File( path='~/AD_TargetRank/Target_Type_Filt.pdf', 
+ENRICH_OBJ <- synapser::synStore( synapser::Folder( path=paste0(plots,'Target_Type_Filt.pdf'), 
                                                    name = 'Distribution of weights by Omics Modality', 
                                                    parentId=CODE$properties$id ), used = Syns_Used, 
                                activityName = activityName, 
                                executed = thisFile, 
                                activityDescription = activityDescription)
 
-ENRICH_OBJ <-  syn_temp$store( synapseclient$File( path='~/AD_TargetRank/Target_Type_Filt_Box.pdf', 
+ENRICH_OBJ <- synapser::synStore( synapser::Folder( path=paste0(plots,'Target_Type_Filt_Box.pdf'), 
                                                    name = 'Box Plots of weights by Omics Modality', 
                                                    parentId=CODE$properties$id ), used = Syns_Used, 
                                activityName = activityName, 
                                executed = thisFile, 
                                activityDescription = activityDescription)
 
-ENRICH_OBJ <-  syn_temp$store( synapseclient$File( path='~/AD_TargetRank/Target_Type_Tot.pdf', 
+ENRICH_OBJ <- synapser::synStore( synapser::Folder( path=paste0(plots,'Target_Type_Tot.pdf'), 
                                                    name = 'Distribution of weights by Omics Modality', 
                                                    parentId=CODE$properties$id ), used = Syns_Used, 
                                activityName = activityName, 
                                executed = thisFile, 
                                activityDescription = activityDescription)
 
-ENRICH_OBJ <-  syn_temp$store( synapseclient$File( path='~/AD_TargetRank/Target_Type_Tot_Box.pdf', 
+ENRICH_OBJ <- synapser::synStore( synapser::Folder( path=paste0(plots,'Target_Type_Tot_Box.pdf'), 
                                                    name = 'Box Plots of weights by Omics Modality', 
                                                    parentId=CODE$properties$id ), used = Syns_Used, 
                                activityName = activityName, 
                                executed = thisFile, 
                                activityDescription = activityDescription)
 
-CODE <- syn_temp$store(synapseclient$Folder(name = "MetaAnalysis", parentId = 'syn22351719'))
+CODE <- synapser::synStore(synapser::Folder(name = "MetaAnalysis", parentId = 'syn22351719'))
 Syns_Used <- c( 'syn22686575', 'syn22414716' )
 
-ENRICH_OBJ <-  syn_temp$store( synapseclient$File( path='~/AD_TargetRank/OmicsScores.csv', 
+ENRICH_OBJ <- synapser::synStore( synapser::Folder( path='~/Desktop/Projects/TREAT_AD/OmicsScores.csv', 
                                                    name = 'Omics Scores Version 2.0', 
                                                    parentId=CODE$properties$id ), used = Syns_Used, 
                                activityName = activityName, 
@@ -305,7 +344,7 @@ cols = list( synapseclient$Column( name='ENSG', columnType='STRING', maximumSize
            )
 
 
-write.csv( Comb, '~/AD_TargetRank/OmicsTable.csv', 
+write.csv( Comb, '~/Desktop/Projects/TREAT_AD/OmicsScores.csv', 
            row.names = F, quote = F)
 schema = synapseclient$Schema(name='Omics Scores Version 2.0', columns=cols, parent='syn21532474')
 table = synapseclient$Table(schema, "OmicsTable.csv")
