@@ -46,10 +46,8 @@ thisFile <- getPermlink(repository = thisRepo, repositoryPath=paste0('code/',thi
 
 ```{r get.exp}
 # Function to read tsv/csv files from synapse
-downloadFile <- function(id, tissue){ 
-  dat <- fread(synapser::synGet(id)$path, data.table = F)
-  dat$tissue <- tissue
-  return(data)
+downloadFile <- function(id){ 
+  fread(synapser::synGet(id)$path, data.table = F)
 }
 # Read covariates
 covar.ids = c(ROSMAP_DLPFC = 'syn26340637 ', 
@@ -88,9 +86,7 @@ expr.ids = c(ROSMAP_DLPFC = 'syn26340641',
               MAYO_TCX = 'syn26387667')
 
 all.used.ids = c(all.used.ids, as.character(expr.ids))
-downloadFile <- function(id, tissue){ 
-  fread(synapser::synGet(id)$path, data.table = F)
-}
+
 expr =  expr.ids %>%
   lapply(downloadFile) %>%
   plyr::join_all(type = 'full')
