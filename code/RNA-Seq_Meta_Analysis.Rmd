@@ -31,12 +31,7 @@ knitr::opts_chunk$set(
 ```
 
 ```{r synapse.parameters, include=FALSE, cache=TRUE}
-reticulate::use_python("/usr/bin/python", required = TRUE)
-synapseclient <- reticulate::import("synapseclient")
-syn_temp <- synapseclient$Synapse()
-syn_temp$login()
-
-#parentId = 'syn18936948';
+synapser::synLogin()
 parentId = 'syn22351719';
 activityName = 'Meta analysis of differential expression hg38 Reprocessed RNASeq';
 activityDescription = 'Fixed and random effect meta-analysis of AMP-AD data hg38 Reprocessed Data (6 brain regions - No CBE)';
@@ -51,63 +46,74 @@ thisFile <- getPermlink(repository = thisRepo, repositoryPath=paste0('code/',thi
 
 ```{r get.exp}
 # Function to read tsv/csv files from synapse
-downloadFile <- function(id){ 
-  fread(syn_temp$get(id)$path, data.table = F)
+downloadFile <- function(id, tissue){ 
+  dat <- fread(synapser::synGet(id)$path, data.table = F)
+  dat$tissue <- tissue
+  return(data)
 }
 # Read covariates
-#covar.ids = c(ROSMAP = 'syn8456631', MSSM = 'syn8484996', MAYO = 'syn8466814')
-covar.ids = c(ROSMAP = 'syn23643706', MSSM = 'syn8484996', MAYO = 'syn8466814')
+covar.ids = c(ROSMAP_DLPFC = 'syn26340637 ', 
+              ROSMAP_PCC = 'syn26350606',
+              ROSMAP_ACC = 'syn26374583 ',
+              MSSM_FP = 'syn26453689', 
+              MSSM_IFG = 'syn26454154', 
+              MSSM_PHG = 'syn26453943', 
+              MSSM_STG = 'syn26454639', 
+              MAYO_TCX = 'syn26374583')
+#_tissue
+
 all.used.ids = as.character(covar.ids)
 covar =  covar.ids %>%
   lapply(downloadFile)
+covar$ROSMAP_DLPFC$tissue <- 'DLPFC'
+covar$ROSMAP_PCC$tissue <- 'PCC'
+covar$ROSMAP_ACC$tissue <- 'ACC'
+covar$MSSM_FP$tissue <- 'FP'
+covar$MSSM_IFG$tissue <- 'IFG'
+covar$MSSM_PHG$tissue <- 'PHG'
+covar$MSSM_STG$tissue <- 'STG'
+covar$MAYO_TCX$tissue <- 'TCX'
 
 # Read adjusted expression
-#expr.ids = c(ROSMAP = 'syn21292041', MSSM = 'syn21285564', MAYO = 'syn21291908')
-expr.ids = c(ROSMAP = 'syn23643727', MSSM = 'syn21285564', MAYO = 'syn21291908')
+expr.ids = c(ROSMAP_DLPFC = 'syn26340641', 
+              ROSMAP_PCC = 'syn26374587',
+              ROSMAP_ACC = 'syn26350610',
+              MSSM_FP = 'syn26453693', 
+              MSSM_IFG = 'syn26454158', 
+              MSSM_PHG = 'syn26453947', 
+              MSSM_STG = 'syn26454643', 
+              MAYO_TCX = 'syn26387667')
+
 all.used.ids = c(all.used.ids, as.character(expr.ids))
+downloadFile <- function(id, tissue){ 
+  fread(synapser::synGet(id)$path, data.table = F)
+}
 expr =  expr.ids %>%
   lapply(downloadFile) %>%
-  plyr::join_all(type = 'inner')
+  plyr::join_all(type = 'full')
 ```
 
 ```{r modify.covar}
-covar$ROSMAP = covar$ROSMAP %>%
-  dplyr::rename(Sex = sex) %>%
-  dplyr::rename(APOE4 = apoe4) %>%
-  tidyr::separate(Tissue.Diagnosis, c('Tissue', 'Diagnosis'), sep = '\\.') %>%
-  tidyr::separate(Tissue.Diagnosis.SEX, c('Tissue1', 'Diagnosis1', 'Sex1'), sep = '\\.') %>%
-  dplyr::select(SampleID, Sex, Tissue1, Diagnosis, Tissue, APOE4) #%>%
-  #dplyr::mutate(Tissue = 'DLPFC')
-covar$MSSM = covar$MSSM %>%
-  dplyr::select(SampleID, Sex, Tissue.Diagnosis, Tissue.APOE4) %>%
-  dplyr::rename(Sex = Sex) %>%
-  tidyr::separate(Tissue.Diagnosis, c('Tissue1', 'Diagnosis'), sep = '\\.') %>%
-  tidyr::separate(Tissue.APOE4, c('Tissue', 'APOE4'), sep = '\\.')
-covar$MAYO = covar$MAYO %>%
-  dplyr::select(SampleID, Sex, Tissue.Diagnosis, Tissue.APOE4) %>%
-  tidyr::separate(Tissue.Diagnosis, c('Tissue1', 'Diagnosis'), sep = '\\.') %>%
-  tidyr::separate(Tissue.APOE4, c('Tissue', 'APOE4'), sep = '\\.')
 covar = covar %>%
-  data.table::rbindlist(use.names = T, fill = T, idcol = 'Study') %>%
-  dplyr::select(-Tissue1)
+  data.table::rbindlist(use.names = T, fill = T, idcol = 'Study')
 ```
 
 ## Perform fixed and random effect meta-analysis for each gene across 7 different brain regions
 #### Meta-analysis of AD-CONTROL
 ```{r ad.cntrl}
 # Mean and sd of gene expression in each tissue x diagnosis group
-tissue.dx.summary = plyr::ddply(covar, .(Tissue, Diagnosis), .fun = function(x, y){
-  data.frame(ensembl_gene_id = y$ensembl_gene_id,
+tissue.dx.summary = plyr::ddply(covar, .(tissue, diagnosis), .fun = function(x, y){
+  data.frame(ensembl_gene_id = y$feature,
              n = dim(x)[1],
-             mn = rowMeans(y[,x$SampleID], na.rm = T),
-             sd = apply(y[,x$SampleID], 1, sd, na.rm = T))
+             mn = rowMeans(y[,x$specimenID], na.rm = T),
+             sd = apply(y[,x$specimenID], 1, sd, na.rm = T))
 }, expr)
 # Perform meta-analysis for AD-CONTROL comparison - Exclude CBE
-meta.anlz.ad_cntrl = plyr::ddply(tissue.dx.summary[(tissue.dx.summary$Tissue%in%'CBE')==F,], .(ensembl_gene_id), .fun = function(x){
-  exp.effect = dplyr::filter(x, Diagnosis == 'AD')
-  rownames(exp.effect) = exp.effect$Tissue
-  cntrl.effect = dplyr::filter(x, Diagnosis == 'CONTROL')
-  rownames(cntrl.effect) = cntrl.effect$Tissue
+meta.anlz.ad_cntrl = plyr::ddply(tissue.dx.summary[(tissue.dx.summary$tissue%in%'CBE')==F,], .(ensembl_gene_id), .fun = function(x){
+  exp.effect = dplyr::filter(x, diagnosis == 'AD')
+  rownames(exp.effect) = exp.effect$tissue
+  cntrl.effect = dplyr::filter(x, diagnosis == 'CT')
+  rownames(cntrl.effect) = cntrl.effect$tissue
   cntrl.effect = cntrl.effect[rownames(exp.effect), ]
   
   tmp = metacont(exp.effect$n, exp.effect$mn, exp.effect$sd, 
@@ -146,11 +152,12 @@ all.gs = gs
 
 #### Adjust the AD-Control Model for weights
 ```{r weights}
+meta.anlz.ad_cntrl <- meta.anlz.ad_cntrl[complete.cases(meta.anlz.ad_cntrl),]
 meta.anlz.ad_cntrl$TE.random.abs <- abs( meta.anlz.ad_cntrl$TE.random )
 
 #Assign Sig Or No
 meta.anlz.ad_cntrl$Sig <- 'NO'
-meta.anlz.ad_cntrl[meta.anlz.ad_cntrl$pval.random < 0.05, ]$Sig <- 'YES'
+meta.anlz.ad_cntrl[meta.anlz.ad_cntrl$fdr.random < 0.05, ]$Sig <- 'YES'
 
 meta.anlz.ad_cntrl <- meta.anlz.ad_cntrl[ order(meta.anlz.ad_cntrl$TE.random.abs), ]
 meta.anlz.ad_cntrl$y <- c( 1:dim(meta.anlz.ad_cntrl)[1] )/dim(meta.anlz.ad_cntrl)[1]
@@ -181,20 +188,15 @@ Weights <- as.data.frame( rbind(Work,Work2) )
 Weights[ Weights$fdr.random > 0.05,]$y <- 0
 Weights <- Weights[ order(-Weights$y), ]
 
-#Annotate with Gene Names
-library('biomaRt')
-mart <- useDataset("hsapiens_gene_ensembl", useMart("ensembl"))
-genes <- as.character(Weights$ENSG[ !duplicated(Weights$ENSG) ])
-G_list <- getBM(filters= "ensembl_gene_id", attributes= c("ensembl_gene_id","hgnc_symbol"),values=genes,mart= mart)
+G_list <- fread(synapser::synGet('syn26453691')$path)
+all.used.ids <- c(all.used.ids,'syn26453691')
 
+G_list <- as.data.frame(G_list)
 G_list$ensembl_gene_id <- as.character(G_list$ensembl_gene_id)
 G_list$hgnc_symbol <- as.character(G_list$hgnc_symbol)
 
 G_list <- G_list[ !duplicated(G_list$ensembl_gene_id),]
-Miss <- cbind( ensembl_gene_id = as.character(Weights[ (Weights$ENSG %in% G_list$ensembl_gene_id) == F,]$ENSG),
-               hgnc_symbol = rep("NA", length(as.character(Weights[ (Weights$ENSG %in% G_list$ensembl_gene_id) == F,]$ENSG)) )
-               )
-G_list <- rbind( Miss, G_list)
+
 G_list <- G_list[ !duplicated(G_list$ensembl_gene_id),]
 
 row.names(G_list) <- G_list$ensembl_gene_id
@@ -205,16 +207,16 @@ Weights <- Weights[, c( "ENSG", "Gene", "TE.random", "seTE.random", "fdr.random"
 
 ## Store results in synapse
 ```{r syn.store, cache = FALSE, include=FALSE}
-CODE <- syn_temp$store(synapseclient$Folder(name = "MetaAnalysis", parentId = parentId))
-Syns_Used <- c( 'syn8456631', 'syn8484996', 'syn8466814', 'syn21292041', 'syn21285564', 'syn21291908' )
+CODE <- synapser::synStore(synapser::Folder(name = "MetaAnalysis", parentId = parentId))
+Syns_Used <- all.used.ids
 
 # Write results to files
 fwrite(meta.anlz.ad_cntrl, file = 'RNASeq_meta.anlz.ad_cntrl.tsv', sep = '\t', row.names = F, quote = F)
-ENRICH_OBJ <-  syn_temp$store( synapseclient$File( path='RNASeq_meta.anlz.ad_cntrl.tsv', name = 'RNASeq AD-Control meta-analysis across 6 brain regions (No CBE) hg38 Reprocessed Data', parentId=CODE$properties$id ), used = Syns_Used, activityName = activityName, executed = thisFile, activityDescription = activityDescription)
+ENRICH_OBJ <-  synapser::synStore( synapser::File( path='RNASeq_meta.anlz.ad_cntrl.tsv', name = 'RNASeq AD-Control meta-analysis across 6 brain regions (No CBE) hg38 Reprocessed Data', parentId=CODE$properties$id ), used = Syns_Used, activityName = activityName, executed = thisFile, activityDescription = activityDescription)
 
 # Write results to files
 fwrite(Weights, file = 'RNASeq_meta_weights.ad_cntrl.tsv', sep = '\t', row.names = F, quote = F)
-ENRICH_OBJ <-  syn_temp$store( synapseclient$File( path='RNASeq_meta_weights.ad_cntrl.tsv', name = 'RNASeq AD-Control meta-analysis Weights', parentId=CODE$properties$id ), used = Syns_Used, activityName = activityName, executed = thisFile, activityDescription = activityDescription)
+ENRICH_OBJ <-  synapser::synStore( synapser::File( path='RNASeq_meta_weights.ad_cntrl.tsv', name = 'RNASeq AD-Control meta-analysis Weights', parentId=CODE$properties$id ), used = Syns_Used, activityName = activityName, executed = thisFile, activityDescription = activityDescription)
 ```
 
 ## Source code
