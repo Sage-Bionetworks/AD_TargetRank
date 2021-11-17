@@ -18,8 +18,8 @@ library(knitr)
 library(githubr)
 library(doParallel)
 library(foreach)
-cl = makeCluster(detectCores()-2)
-registerDoParallel(cl)
+#cl = makeCluster(detectCores()-2)
+#registerDoParallel(cl)
 options(xtable.type="html")
 knitr::opts_chunk$set(
   echo=FALSE,
