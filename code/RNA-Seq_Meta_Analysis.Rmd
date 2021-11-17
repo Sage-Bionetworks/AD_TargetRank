@@ -74,6 +74,9 @@ covar$MSSM_PHG$tissue <- 'PHG'
 covar$MSSM_STG$tissue <- 'STG'
 covar$MAYO_TCX$tissue <- 'TCX'
 
+covar = covar %>%
+  data.table::rbindlist(use.names = T, fill = T, idcol = 'Study')
+
 # Read adjusted expression
 expr.ids = c(ROSMAP_DLPFC = 'syn26340641', 
               ROSMAP_PCC = 'syn26374587',
@@ -91,11 +94,6 @@ downloadFile <- function(id, tissue){
 expr =  expr.ids %>%
   lapply(downloadFile) %>%
   plyr::join_all(type = 'full')
-```
-
-```{r modify.covar}
-covar = covar %>%
-  data.table::rbindlist(use.names = T, fill = T, idcol = 'Study')
 ```
 
 ## Perform fixed and random effect meta-analysis for each gene across 7 different brain regions
