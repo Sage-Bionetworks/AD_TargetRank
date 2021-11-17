@@ -345,7 +345,30 @@ cols = list( synapser::Column( name='ENSG', columnType='STRING', maximumSize=20)
 
 write.csv( Comb, 'OmicsScores.csv', 
            row.names = F, quote = F)
-schema = synapser::Schema(name='Omics Scores Version 3.0', columns=cols, parent='syn21532474')
-table = synapser::Table(schema, "OmicsScores.csv")
-synapser::synStore(table)
+
+# Pull Project
+project_treatad <- synapser::synGetEntity('syn21532474')
+
+# Pull Omics Score Table
+omics_table <- synapser::synTableQuery(sprintf("select * from %s ", 'syn22758536'))
+
+# Create a snapshot of the Table Entity
+body_json <- rjson::toJSON(c(snapshotComment = "Added TMT and SageSeqR Processed", snapshotLabel = "v4"))
+snapshot <-  synapser::synRestPOST(paste0("/entity/", omics_table$tableId, "/table/snapshot"), body = body_json)
+
+# Pull Version 3 of the Omics scores:
+omics_table <- synapser::synTableQuery(sprintf("select * from %s ", 'syn22758536'))
+scores <- Comb #read.csv(synapser::synGet('syn22758171', version=2)$path)
+
+# Change the entire Table Entity
+deleted <- synapser::synDelete(omics_table)
+scores <- scores[, c('ENSG', 'GName', 'RNA_TE', 'RNA_fdr_CorPVal', 'RNA_Sig', 'RNA_Direction',
+                     'RNA_Weight',	'Pro_TE',	'Pro_fdr_CorPVal',	'Pro_Sig',	'Pro_Direction',
+                     'Pro_Weight',	'Harness',	'Rank',	'Predicted_Weight',	'TYPE',	'Final_Weight',
+                     'OmicsScore')]
+scores$RNA_TE <- signif(scores$RNA_TE,5)
+scores$Pro_TE <- signif(scores$Pro_TE,5)
+
+synapser::synStore(synapser::Table(omics_table$tableId, scores))
+
   
