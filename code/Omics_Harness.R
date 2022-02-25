@@ -177,13 +177,26 @@ Comb[ Comb$Pro_Sig %in% 'YES' & Comb$RNA_Sig %in% 'YES', ]$TYPE <- 'Both_Sig'
 Comb[ (Comb$Pro_Sig %in% 'NO' | is.na(Comb$Pro_Sig)) & (Comb$RNA_Sig %in% 'NO' | is.na(Comb$RNA_Sig)), ]$TYPE <- 'None_Sig'
 Comb$TYPE<-as.factor(Comb$TYPE)
 
+Comb$plotname <- NA
+#label_name <- c('CPEB1', 'SIRT2', 'DLG5', 'MTCH1', 'MTOR', 'ADAM17', 'APPL1', 'CNTNAP2', 'NEFL')
+label_name <- c("MTCH1", "MTOR", "APPL1", 'BAX','STMN2', 'SLC9A9','TOMM40L','GABRA2', 'MTCH2')
+Comb[ Comb$GName %in% label_name, ]$plotname <- Comb[ Comb$GName %in% label_name, ]$GName
+
 ggplot( data=Comb ) + 
   geom_line( aes( y = test, x=Harness  )) +
   geom_jitter( aes( y = test, x=Harness, col= TYPE),alpha = 0.2, width=0.05) 
 
 ggplot( data=Comb[ Comb$RNA_Sig %in% 'YES' | Comb$Pro_Sig %in% 'YES', ] ) + 
   geom_line( aes( y = test, x=Harness  )) +
-  geom_jitter( aes( y = test, x=Harness, col= TYPE),alpha = 0.4, shape = 16, size = .5, width=0.05) 
+  geom_jitter( aes( y = test, x=Harness, col= TYPE),alpha = 0.4, shape = 16, size = .5, width=0.05) +
+  ggrepel::geom_label_repel(data = Comb[ Comb$RNA_Sig %in% 'YES' | Comb$Pro_Sig %in% 'YES', ] , 
+                            ggplot2::aes(x=Harness, y=test, label = plotname, size = NULL, color = NULL),
+                            nudge_x = .45,
+                            nudge_y = -.15,
+                            segment.size  = 0.2,
+                            segment.color = "grey50",
+                            direction     = "x"
+  )
 
 
 Comb$TYPE<-as.character(Comb$TYPE)
@@ -219,7 +232,17 @@ pdf(paste0(plots,'Target_Type_Filt.pdf'))
 ggplot( data=Comb[ Comb$RNA_Sig %in% 'YES' | Comb$Pro_Sig %in% 'YES', ] ) + 
   geom_line( aes( y = test, x=Harness  )) +
   geom_jitter( aes( y = test, x=Harness, col= TYPE),alpha = 0.4, shape = 16, size = .5, width=0.05) + 
-  ylab("Weight")
+  ylab("Weight") +
+  geom_jitter( aes( y = test, x=Harness, col= TYPE),alpha = 0.4, shape = 16, size = .5, width=0.05) +
+  ggrepel::geom_label_repel(data = Comb[ Comb$RNA_Sig %in% 'YES' | Comb$Pro_Sig %in% 'YES', ] , 
+                            ggplot2::aes(x=Harness, y=test, label = plotname, size = NULL, color = NULL),
+                            nudge_x = .45,
+                            nudge_y = -.15,
+                            segment.size  = 0.2,
+                            segment.color = "grey50",
+                            direction     = "x",
+  )
+
 dev.off()
 
 pdf(paste0(plots,'Target_Type_Filt_Box.pdf'))
@@ -347,13 +370,14 @@ write.csv( Comb, 'OmicsScores.csv',
            row.names = F, quote = F)
 
 # Pull Project
-project_treatad <- synapser::synGetEntity('syn21532474')
+#project_treatad <- synapser::synGetEntity('syn21532474')
 
 # Pull Omics Score Table
 omics_table <- synapser::synTableQuery(sprintf("select * from %s ", 'syn22758536'))
+#omics_table <- read.csv(omics_table$filepath)
 
 # Create a snapshot of the Table Entity
-body_json <- rjson::toJSON(c(snapshotComment = "Added TMT and SageSeqR Processed", snapshotLabel = "v4"))
+body_json <- rjson::toJSON(c(snapshotComment = "Added TMT and SageSeqR final Processed", snapshotLabel = "v5"))
 snapshot <-  synapser::synRestPOST(paste0("/entity/", omics_table$tableId, "/table/snapshot"), body = body_json)
 
 # Pull Version 3 of the Omics scores:

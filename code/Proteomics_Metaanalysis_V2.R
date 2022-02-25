@@ -1,9 +1,9 @@
 ### Proteomics Meta Analysis Version 2
-
+library(dplyr)
 source('utilityFunctions/loadsyndata.R')
 system( 'curl http://www.compgen.pitt.edu/GemTools/GemTools.R > GemTools.R')
 source('GemTools.R')
-
+synapser::synLogin()
 load(synapser::synGet('syn26427476')$path)
 load(synapser::synGet('syn26433992')$path)
 
@@ -316,6 +316,44 @@ tWork$Sig <- ifelse(tWork$fdr.random < 0.05, "YES", "NO" )
 tWork <- tWork[ order(-abs(tWork$y)), ]
 tWork$y_Final <- tWork$y
 tWork[ tWork$Sig == 'NO',]$y_Final <- 0
+
+tWork$plotname <- NA
+label_name <- c( "MTCH1", "MTOR", "APPL1", "BAX", "STMN2", "SLC9A9", "TOMM40L", "GABRA2",  "MTCH2"  )
+tWork[ tWork$SYMBOL %in% label_name, ]$plotname <- tWork[ tWork$SYMBOL %in% label_name, ]$SYMBOL
+
+A <- tWork[ tWork$Type == 'Actual Rank', ]
+row.names(A) <- A$ENSG
+colnames(A)[colnames(A)=='y_Final'] <- 'y_Final_Actual'
+colnames(A)[colnames(A)=='y'] <- 'y_Actual'
+
+B <- tWork[ tWork$Type == 'Predicted Weight', ]
+row.names(B) <- B$ENSG
+colnames(B)[colnames(B)=='y_Final'] <- 'y_Final_Predicted'
+colnames(B)[colnames(B)=='y'] <- 'y_Predicted'
+
+plotframe <- as.data.frame(cbind(A[,c('peptide_id', 'EnsemblGene','SYMBOL', 'TE.random', 'seTE.random', 'fdr.random', 'abs_TE', 'y_Actual','y_Final_Actual', 'plotname')], B[row.names(A), c('y_Predicted','y_Final_Predicted')]))
+
+plotframe <- plotframe[ plotframe$fdr.random < 0.05, ]
+plotframe$logTE <- log(abs(plotframe$abs_TE))
+
+library(ggplot2)
+library(ggrepel)
+ggplot2::ggplot(data=plotframe) + 
+  ggplot2::geom_point( ggplot2::aes(x=logTE, y=y_Predicted)) +
+  ggrepel::geom_label_repel(data = plotframe, 
+                            ggplot2::aes(x=logTE, y=y_Predicted, label = plotname, size = NULL, color = NULL),
+                            nudge_x = .45,
+                            nudge_y = -.05,
+                            segment.size  = 0.2,
+                            segment.color = "grey50",
+                            direction     = "x"
+  ) +
+  ggplot2::xlab("Log( absolute(Effect Size))") + 
+  ggplot2::ylab("Assigned weight") +
+  ggplot2::labs(title="Weights of Differentially Expressed Proteins") + 
+  ggplot2::theme(plot.title =  ggplot2::element_text(hjust = 0.5))
+
+
 
 
 plot( log(abs( tWork[ tWork$Sig == 'YES' & tWork$Type == 'Predicted Weight', ]$TE.random.abs)), 

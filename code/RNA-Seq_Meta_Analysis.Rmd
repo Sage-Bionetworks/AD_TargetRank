@@ -49,46 +49,56 @@ downloadFile <- function(id){
   fread(synapser::synGet(id)$path, data.table = F)
 }
 # Read covariates
-covar.ids = c(ROSMAP_DLPFC = 'syn26340637 ', 
-              ROSMAP_PCC = 'syn26350606',
-              ROSMAP_ACC = 'syn26374583 ',
-              MSSM_FP = 'syn26453689', 
-              MSSM_IFG = 'syn26454154', 
-              MSSM_PHG = 'syn26453943', 
-              MSSM_STG = 'syn26454639', 
-              MAYO_TCX = 'syn26374583')
+#covar.ids = c(ROSMAP_DLPFC = 'syn26340637 ', 
+#              ROSMAP_PCC = 'syn26350606',
+#              ROSMAP_ACC = 'syn26374583 ',
+#              MSSM_FP = 'syn26453689', 
+#              MSSM_IFG = 'syn26454154', 
+#              MSSM_PHG = 'syn26453943', 
+#              MSSM_STG = 'syn26454639', 
+#              MAYO_TCX = 'syn26374583')
+
+covar.ids = c(ROSMAP = 'syn26967450 ', 
+              MSSM = 'syn27068753', 
+              MAYO = 'syn27024950')
 #_tissue
 
 all.used.ids = as.character(covar.ids)
 covar =  covar.ids %>%
   lapply(downloadFile)
-covar$ROSMAP_DLPFC$tissue <- 'DLPFC'
-covar$ROSMAP_PCC$tissue <- 'PCC'
-covar$ROSMAP_ACC$tissue <- 'ACC'
-covar$MSSM_FP$tissue <- 'FP'
-covar$MSSM_IFG$tissue <- 'IFG'
-covar$MSSM_PHG$tissue <- 'PHG'
-covar$MSSM_STG$tissue <- 'STG'
-covar$MAYO_TCX$tissue <- 'TCX'
+#covar$ROSMAP_DLPFC$tissue <- 'DLPFC'
+#covar$ROSMAP_PCC$tissue <- 'PCC'
+#covar$ROSMAP_ACC$tissue <- 'ACC'
+#covar$MSSM_FP$tissue <- 'FP'
+#covar$MSSM_IFG$tissue <- 'IFG'
+#covar$MSSM_PHG$tissue <- 'PHG'
+#covar$MSSM_STG$tissue <- 'STG'
+#covar$MAYO_TCX$tissue <- 'TCX'
 
 covar = covar %>%
   data.table::rbindlist(use.names = T, fill = T, idcol = 'Study')
 
 # Read adjusted expression
-expr.ids = c(ROSMAP_DLPFC = 'syn26340641', 
-              ROSMAP_PCC = 'syn26374587',
-              ROSMAP_ACC = 'syn26350610',
-              MSSM_FP = 'syn26453693', 
-              MSSM_IFG = 'syn26454158', 
-              MSSM_PHG = 'syn26453947', 
-              MSSM_STG = 'syn26454643', 
-              MAYO_TCX = 'syn26387667')
+#expr.ids = c(ROSMAP_DLPFC = 'syn26340641', 
+#              ROSMAP_PCC = 'syn26374587',
+#              ROSMAP_ACC = 'syn26350610',
+#              MSSM_FP = 'syn26453693', 
+#              MSSM_IFG = 'syn26454158', 
+#              MSSM_PHG = 'syn26453947', 
+#              MSSM_STG = 'syn26454643', 
+#              MAYO_TCX = 'syn26387667')
+expr.ids = c(ROSMAP_DLPFC = 'syn26967454', 
+              MSSM_STG = 'syn27068759', 
+              MAYO_TCX = 'syn27024966')
 
 all.used.ids = c(all.used.ids, as.character(expr.ids))
 
 expr =  expr.ids %>%
   lapply(downloadFile) %>%
   plyr::join_all(type = 'full')
+#expr <- as.data.frame(expr) %>%
+#  column_to_rownames('feature')
+
 ```
 
 ## Perform fixed and random effect meta-analysis for each gene across 7 different brain regions
@@ -195,7 +205,46 @@ G_list <- G_list[ !duplicated(G_list$ensembl_gene_id),]
 row.names(G_list) <- G_list$ensembl_gene_id
 Weights$Gene <- G_list[ as.character(Weights$ENSG),]$hgnc_symbol
 
+
+
 Weights <- Weights[, c( "ENSG", "Gene", "TE.random", "seTE.random", "fdr.random", 'TE.random.abs', "log_abs_PVal", "Type", "PreAdjWeight", "y" )]
+
+Weights$plotname <- NA
+label_name <- c( "MTCH1", "MTOR", "APPL1", "BAX", "STMN2", "SLC9A9", "TOMM40L", "GABRA2",  "MTCH2"  )
+Weights[ Weights$Gene %in% label_name, ]$plotname <- Weights[ Weights$Gene %in% label_name, ]$Gene
+
+A <- Weights[ Weights$Type == 'Actual Rank', ]
+row.names(A) <- A$ENSG
+colnames(A)[colnames(A)=='PreAdjWeight'] <- 'PreAdjWeight_Actual'
+colnames(A)[colnames(A)=='y'] <- 'y_Actual'
+
+B <- Weights[ Weights$Type == 'Predicted Weight', ]
+row.names(B) <- B$ENSG
+colnames(B)[colnames(B)=='PreAdjWeight'] <- 'PreAdjWeight_Predicted'
+colnames(B)[colnames(B)=='y'] <- 'y_Predicted'
+
+plotframe <- as.data.frame(cbind(A[,c('ENSG','Gene', 'TE.random', 'seTE.random', 'fdr.random', 'TE.random.abs', 'log_abs_PVal', 'PreAdjWeight_Actual','y_Actual', 'plotname')], B[row.names(A), c('PreAdjWeight_Predicted','y_Predicted')]))
+
+plotframe <- plotframe[ plotframe$fdr.random < 0.05, ]
+plotframe$logTE <- log(abs(plotframe$TE.random.abs))
+
+library(ggplot2)
+library(ggrepel)
+ggplot2::ggplot(data=plotframe) + 
+  ggplot2::geom_point( ggplot2::aes(x=logTE, y=y_Predicted)) +
+  ggrepel::geom_label_repel(data = plotframe, 
+                            ggplot2::aes(x=logTE, y=y_Predicted, label = plotname, size = NULL, color = NULL),
+                            nudge_x = .45,
+                            nudge_y = -.05,
+                            segment.size  = 0.2,
+                            segment.color = "grey50",
+                            direction     = "x"
+) +
+  ggplot2::xlab("Log2( absolute(Effect Size))") + 
+  ggplot2::ylab("Assigned weight") +
+  ggplot2::labs(title="Weights of Differentially Expressed Transcripts") + 
+  ggplot2::theme(plot.title =  ggplot2::element_text(hjust = 0.5))
+
 ```
 
 ## Store results in synapse
